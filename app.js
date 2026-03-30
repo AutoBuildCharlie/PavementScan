@@ -765,6 +765,10 @@ function ratingColor(rating) {
 }
 
 // ─── STREET LIST ───────────────────────────────────────────
+function isStreetViewOpen() {
+  return streetViewPano && !document.getElementById('streetview-panel').classList.contains('hidden');
+}
+
 function renderStreetList() {
   const container = document.getElementById('street-list');
 
@@ -773,7 +777,15 @@ function renderStreetList() {
     return;
   }
 
-  container.innerHTML = streets.map(s => `
+  // When Street View is open and a street is selected, only show that street
+  const svOpen = isStreetViewOpen();
+  const visibleStreets = (svOpen && activeStreetId) ? streets.filter(s => s.id === activeStreetId) : streets;
+
+  // Show a "back to all" link when filtered
+  const backLink = (svOpen && activeStreetId && streets.length > 1) ?
+    `<div class="street-list-back" onclick="activeStreetId=null;renderStreetList()">← Show all ${streets.length} streets</div>` : '';
+
+  container.innerHTML = backLink + visibleStreets.map(s => `
     <div class="street-card ${s.id === activeStreetId ? 'active' : ''} ${s.crossesBoundary ? 'street-card-warning' : ''}" onclick="selectStreet('${s.id}')">
       <button class="street-card-delete" onclick="event.stopPropagation(); deleteStreet('${s.id}')" title="Delete">&times;</button>
       <div class="street-card-name" title="${escHtml(s.name)}">${escHtml(s.name)}</div>
@@ -1410,6 +1422,7 @@ function closeStreetViewPanel() {
   miniMapLines = [];
   streetViewMode = false;
   document.querySelector('.qa-streetview').classList.remove('qa-active');
+  renderStreetList(); // show all streets again
 }
 
 // ─── FREE HIGHLIGHT (continuous multi-point drawing) ───────
