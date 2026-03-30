@@ -596,12 +596,38 @@ async function rescanStreet(id) {
 
 // ─── DELETE STREET ─────────────────────────────────────────
 function deleteStreet(id) {
-  if (!confirm('Delete this street?')) return;
+  // Show inline confirm below the card
+  const existing = document.getElementById('delete-confirm-' + id);
+  if (existing) { existing.remove(); return; } // toggle off
+
+  // Remove any other open confirms
+  document.querySelectorAll('.delete-confirm').forEach(el => el.remove());
+
+  const card = document.querySelector(`.street-card[onclick*="${id}"]`);
+  if (!card) return;
+
+  const confirm = document.createElement('div');
+  confirm.id = 'delete-confirm-' + id;
+  confirm.className = 'delete-confirm';
+  confirm.innerHTML = `
+    <span>Delete this street?</span>
+    <div class="delete-confirm-btns">
+      <button class="dc-yes" onclick="event.stopPropagation(); confirmDelete('${id}')">Yes, delete</button>
+      <button class="dc-no" onclick="event.stopPropagation(); this.parentElement.parentElement.remove()">Cancel</button>
+    </div>
+  `;
+  card.after(confirm);
+}
+
+function confirmDelete(id) {
   streets = streets.filter(s => s.id !== id);
+  activeProject.streets = streets;
   saveStreets();
   closeDetailPanel();
   renderStreetList();
   placeAllMarkers();
+  placePhotoMarkers();
+  drawAllHighlights();
   updateStats();
   showToast('Street removed');
 }
