@@ -295,21 +295,74 @@ async function migrateRoadTypes() {
   showToast(`${toFix.length} street${toFix.length > 1 ? 's' : ''} updated with road types`);
 }
 
+// Interpolate a lat/lng at fraction t (0–1) along a path
+function getPathPointAt(path, t) {
+  let total = 0;
+  const segs = [];
+  for (let i = 1; i < path.length; i++) {
+    const d = Math.sqrt(Math.pow(path[i].lat - path[i-1].lat, 2) + Math.pow(path[i].lng - path[i-1].lng, 2));
+    segs.push(d);
+    total += d;
+  }
+  const target = total * t;
+  let cum = 0;
+  for (let i = 0; i < segs.length; i++) {
+    if (cum + segs[i] >= target) {
+      const lt = (target - cum) / segs[i];
+      return {
+        lat: path[i].lat + (path[i+1].lat - path[i].lat) * lt,
+        lng: path[i].lng + (path[i+1].lng - path[i].lng) * lt
+      };
+    }
+    cum += segs[i];
+  }
+  return path[path.length - 1];
+}
+
+// Binary search along path to find exact city/county boundary crossing
+async function findExactBoundaryPoint(street) {
+  const path = street.path;
+  if (!path || path.length < 2) return null;
+  const startCity   = street.city;
+  const startCounty = street.county;
+  let lo = 0, hi = 1;
+  for (let i = 0; i < 4; i++) {
+    const mid = (lo + hi) / 2;
+    const pt  = getPathPointAt(path, mid);
+    const geo = await geocodeDetails(pt);
+    if (geo.city === startCity && geo.county === startCounty) {
+      lo = mid; // still in start jurisdiction — boundary is further ahead
+    } else {
+      hi = mid; // crossed — boundary is behind this point
+    }
+    await new Promise(r => setTimeout(r, 300)); // brief pause between calls
+  }
+  return getPathPointAt(path, (lo + hi) / 2);
+}
+
 // ─── MIGRATE BOUNDARY POINTS (one-time, runs on load) ──────
-function migrateBoundaryPoints() {
-  let changed = false;
+async function migrateBoundaryPoints() {
+  const toFix = [];
   projects.forEach(p => {
     p.streets.forEach(s => {
-      if (s.crossesBoundary && !s.boundaryPoint && s.path && s.path.length >= 2) {
-        s.boundaryPoint = s.path[Math.floor(s.path.length / 2)];
-        changed = true;
+      if (s.crossesBoundary && !s.boundaryPointExact && s.path && s.path.length >= 2) {
+        toFix.push(s);
       }
     });
   });
-  if (changed) {
-    saveProjects();
-    drawAllHighlights();
+  if (toFix.length === 0) return;
+
+  for (const s of toFix) {
+    const exact = await findExactBoundaryPoint(s);
+    if (exact) {
+      s.boundaryPoint = exact;
+      s.boundaryPointExact = true;
+    } else {
+      s.boundaryPoint = s.path[Math.floor(s.path.length / 2)];
+    }
   }
+  saveProjects();
+  drawAllHighlights();
 }
 
 // ─── MIGRATE SCAN PHOTOS (one-time, runs on load) ──────────
@@ -1862,9 +1915,17 @@ async function saveHighlightedStreet(startPt, endPt) {
     street.boundaryNote = `Crosses county line: ${startGeo.county} → ${endGeo.county}`;
   }
 
-  // Store approximate boundary crossing point (midpoint of path)
+  // Find exact boundary crossing point via binary search
   if (street.crossesBoundary && roadPath.length >= 2) {
-    street.boundaryPoint = roadPath[Math.floor(roadPath.length / 2)];
+    street.boundaryPoint = roadPath[Math.floor(roadPath.length / 2)]; // temp estimate
+    findExactBoundaryPoint(street).then(exact => {
+      if (exact) {
+        street.boundaryPoint = exact;
+        street.boundaryPointExact = true;
+        saveStreets();
+        drawAllHighlights();
+      }
+    });
   }
 
   streets.push(street);
