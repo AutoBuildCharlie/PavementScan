@@ -912,8 +912,8 @@ function selectStreet(id) {
     <div class="detail-section">
       <h4>Photos AI Analyzed (${street.scanPhotos.length})</h4>
       <div class="scan-photo-grid">
-        ${street.scanPhotos.map(p => `
-          <div class="scan-photo-card">
+        ${street.scanPhotos.map((p, i) => `
+          <div class="scan-photo-card" onclick="openLightbox(${JSON.stringify(street.scanPhotos).replace(/"/g, '&quot;')}, ${i})" title="Click to enlarge">
             <img src="${p.url}" alt="${escHtml(p.label)}" class="scan-photo-img" onerror="this.style.display='none'">
             <div class="scan-photo-label">${escHtml(p.label)}</div>
           </div>
@@ -1270,6 +1270,32 @@ function updateStats() {
   } else {
     document.getElementById('avg-rating').textContent = '—';
   }
+}
+
+// ─── PHOTO LIGHTBOX ────────────────────────────────────────
+let _lbPhotos = [], _lbIdx = 0;
+
+function openLightbox(photos, idx) {
+  _lbPhotos = photos;
+  _lbIdx = idx;
+  _renderLightbox();
+  document.getElementById('photo-lightbox').classList.remove('hidden');
+}
+
+function closeLightbox() {
+  document.getElementById('photo-lightbox').classList.add('hidden');
+}
+
+function lightboxNav(dir) {
+  _lbIdx = (_lbIdx + dir + _lbPhotos.length) % _lbPhotos.length;
+  _renderLightbox();
+}
+
+function _renderLightbox() {
+  const p = _lbPhotos[_lbIdx];
+  document.getElementById('lightbox-img').src = p.url;
+  document.getElementById('lightbox-label').textContent = p.label;
+  document.getElementById('lightbox-count').textContent = `${_lbIdx + 1} / ${_lbPhotos.length}`;
 }
 
 // ─── HELPERS ───────────────────────────────────────────────

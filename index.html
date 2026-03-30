@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Cracking &amp; Sealing Est.</title>
-  <link rel="stylesheet" href="style.css?v=53">
+  <link rel="stylesheet" href="style.css?v=54">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 </head>
@@ -94,6 +94,20 @@
 
   </main>
 
+  <!-- ─── PHOTO LIGHTBOX ───────────────────────────────────── -->
+  <div id="photo-lightbox" class="lightbox hidden" onclick="closeLightbox()">
+    <div class="lightbox-inner" onclick="event.stopPropagation()">
+      <button class="lightbox-close" onclick="closeLightbox()">&times;</button>
+      <img id="lightbox-img" src="" alt="">
+      <div id="lightbox-label" class="lightbox-label"></div>
+      <div class="lightbox-nav">
+        <button onclick="lightboxNav(-1)">&#8592;</button>
+        <span id="lightbox-count"></span>
+        <button onclick="lightboxNav(1)">&#8594;</button>
+      </div>
+    </div>
+  </div>
+
   <!-- ─── ADD STREET MODAL ────────────────────────────────── -->
   <div id="modal-overlay" class="modal-overlay hidden" onclick="closeModal(event)">
     <div class="modal" onclick="event.stopPropagation()">
@@ -128,7 +142,7 @@
   </div>
 
   <!-- ─── SCRIPTS ─────────────────────────────────────────── -->
-  <script src="app.js?v=53"></script>
+  <script src="app.js?v=54"></script>
   <script async defer
     src="https://maps.googleapis.com/maps/api/js?key=AIzaSyALUzyaUCMmtVah_gcnoe-g2VGeezsPkZ8&callback=initMap">
   </script>
