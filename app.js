@@ -42,7 +42,7 @@ const SV_BASE = 'https://maps.googleapis.com/maps/api/streetview';
 let API_KEY = '';
 
 // ─── OPENAI PROXY (for AI crack analysis) ──────────────────
-const AI_PROXY = ''; // Cloudflare Worker URL — add later
+const AI_PROXY = 'https://cse-worker.aestheticcal22.workers.dev';
 
 // ─── INIT ──────────────────────────────────────────────────
 function initMap() {
