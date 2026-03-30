@@ -416,6 +416,9 @@ body {
 }
 @keyframes spin { to { transform: rotate(360deg); } }
 
+/* ─── UTILITY ─────────────────────────────────────────────── */
+.hidden { display: none !important; }
+
 /* ─── TOAST ───────────────────────────────────────────────── */
 #toast-container {
   position: fixed;
