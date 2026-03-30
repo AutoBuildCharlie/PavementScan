@@ -80,6 +80,9 @@ function initMap() {
 
   // Auto-fix streets missing road type (runs once per device)
   migrateRoadTypes();
+
+  // Auto-generate scan photo galleries for existing streets
+  migrateScanPhotos();
 }
 
 // ─── STORAGE & PROJECTS ────────────────────────────────────
@@ -287,6 +290,28 @@ async function migrateRoadTypes() {
   updateStats();
   if (activeStreetId) selectStreet(activeStreetId);
   showToast(`${toFix.length} street${toFix.length > 1 ? 's' : ''} updated with road types`);
+}
+
+// ─── MIGRATE SCAN PHOTOS (one-time, runs on load) ──────────
+function migrateScanPhotos() {
+  let changed = false;
+  projects.forEach(p => {
+    p.streets.forEach(s => {
+      if (!s.scanPhotos && s.scannedAt) {
+        const pts = getSamplePoints(s);
+        s.scanPhotos = pts.map(pt => ({
+          url: getStreetViewUrl(pt.lat, pt.lng, pt.heading || 0),
+          label: pt.label
+        }));
+        s.photosScanned = pts.length;
+        changed = true;
+      }
+    });
+  });
+  if (changed) {
+    saveProjects();
+    if (activeStreetId) selectStreet(activeStreetId);
+  }
 }
 
 // ─── CITY/COUNTY DETECTION ──────────────────────────────────
