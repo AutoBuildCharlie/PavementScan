@@ -381,24 +381,11 @@ async function migrateStreetNames() {
 
   for (const s of toFix) {
     const path = s.path && s.path.length >= 2 ? s.path : null;
-
-    // Sample 3 points along the path (25%, 50%, 75%) and pick most common route
-    const sampleTs = path ? [0.25, 0.5, 0.75] : [0.5];
-    const routes = [];
-    for (const t of sampleTs) {
-      const pt = path ? getPathPointAt(path, t) : { lat: s.lat, lng: s.lng };
-      const geo = await geocodeDetails(pt);
-      if (geo.route) routes.push(geo.route);
-      await new Promise(r => setTimeout(r, 250));
-    }
-
-    if (routes.length > 0) {
-      // Pick most common route name
-      const freq = {};
-      routes.forEach(r => freq[r] = (freq[r] || 0) + 1);
-      s.name = Object.entries(freq).sort((a, b) => b[1] - a[1])[0][0];
-    }
+    const midPt = path ? getPathPointAt(path, 0.5) : { lat: s.lat, lng: s.lng };
+    const info = await detectRoadType(midPt.lat, midPt.lng);
+    if (info.name) s.name = info.name;
     s.nameFixed = 2;
+    await new Promise(r => setTimeout(r, 1100)); // Nominatim rate limit
   }
 
   saveProjects();
@@ -478,13 +465,13 @@ async function detectRoadType(lat, lng) {
     });
     const data = await res.json();
     const osmType = data.type || data.class || '';
+    const roadName = data.address?.road || data.name || '';
     const road = ROAD_TYPES[osmType];
-    if (road) return { type: osmType, label: road.label, width: road.width };
-    // Fallback: default to residential
-    return { type: osmType || 'unknown', label: 'Residential', width: 32 };
+    if (road) return { type: osmType, label: road.label, width: road.width, name: roadName };
+    return { type: osmType || 'unknown', label: 'Residential', width: 32, name: roadName };
   } catch (e) {
     console.error('Road type detection error:', e);
-    return { type: 'unknown', label: 'Residential', width: 32 };
+    return { type: 'unknown', label: 'Residential', width: 32, name: '' };
   }
 }
 
@@ -1928,7 +1915,7 @@ async function saveHighlightedStreet(startPt, endPt) {
 
   const street = {
     id: crypto.randomUUID?.() || Date.now().toString(36),
-    name: midGeo.route || startGeo.route || startGeo.address || 'Unknown location',
+    name: roadInfo.name || midGeo.route || startGeo.route || 'Unknown location',
     lat: startPt.lat,
     lng: startPt.lng,
     length: roadLengthFt,
