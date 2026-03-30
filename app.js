@@ -2074,10 +2074,19 @@ function drawAllHighlights() {
       boundaryLine.addListener('click', () => selectStreet(street.id));
       polylines.push(boundaryLine);
 
-      // City label — start side (35% along path)
-      const t1 = Math.floor(path.length * 0.25);
+      // Find boundary fraction along path then place labels on each side
+      let boundaryT = 0.5;
+      let minDist = Infinity;
+      path.forEach((pt, idx) => {
+        const d = Math.sqrt(Math.pow(pt.lat - street.boundaryPoint.lat, 2) + Math.pow(pt.lng - street.boundaryPoint.lng, 2));
+        if (d < minDist) { minDist = d; boundaryT = idx / (path.length - 1); }
+      });
+
+      const startLabelPos = getPathPointAt(path, boundaryT / 2);
+      const endLabelPos   = getPathPointAt(path, boundaryT + (1 - boundaryT) / 2);
+
       const startLabel = new google.maps.Marker({
-        position: path[Math.max(0, t1)],
+        position: startLabelPos,
         map: map,
         title: startCity,
         icon: { path: google.maps.SymbolPath.CIRCLE, scale: 0 },
@@ -2087,10 +2096,8 @@ function drawAllHighlights() {
       startLabel.addListener('click', () => selectStreet(street.id));
       polylines.push(startLabel);
 
-      // City label — end side (75% along path)
-      const t2 = Math.floor(path.length * 0.75);
       const endLabel = new google.maps.Marker({
-        position: path[Math.min(path.length - 1, t2)],
+        position: endLabelPos,
         map: map,
         title: endCity,
         icon: { path: google.maps.SymbolPath.CIRCLE, scale: 0 },
