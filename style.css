@@ -595,6 +595,10 @@ body {
   font-weight: 700;
   margin-top: 2px;
 }
+.rating-card-level-1 { border-color: #22c55e; background: rgba(34,197,94,0.08); }
+.rating-card-level-2 { border-color: #eab308; background: rgba(234,179,8,0.08); }
+.rating-card-level-3 { border-color: #f97316; background: rgba(249,115,22,0.08); }
+.rating-card-level-4 { border-color: #ef4444; background: rgba(239,68,68,0.08); }
 .rating-select {
   margin-top: 4px;
   width: 100%;

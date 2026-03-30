@@ -837,7 +837,7 @@ function selectStreet(id) {
         <div class="detail-stat-label">Sq Ft</div>
         <div class="detail-stat-value">${street.sqft ? formatNumber(street.sqft) : '—'}</div>
       </div>
-      <div class="detail-stat">
+      <div class="detail-stat rating-card-${street.rating}">
         <div class="detail-stat-label">Rating</div>
         <div class="detail-stat-value"><span class="rating-badge rating-${street.rating}">${ratingLabel(street.rating)}</span></div>
         <select class="rating-select rating-${street.rating}" onchange="setRating('${street.id}', this.value)">
