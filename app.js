@@ -373,19 +373,32 @@ async function migrateStreetNames() {
   const toFix = [];
   projects.forEach(p => {
     p.streets.forEach(s => {
-      if (!s.nameFixed && s.lat && s.lng) toFix.push(s);
+      // nameFixed v2 = uses 3-point sampling; re-run if not yet done
+      if (s.nameFixed !== 2 && s.lat && s.lng) toFix.push(s);
     });
   });
   if (toFix.length === 0) return;
 
   for (const s of toFix) {
-    const midPt = s.path && s.path.length >= 2
-      ? s.path[Math.floor(s.path.length / 2)]
-      : { lat: s.lat, lng: s.lng };
-    const geo = await geocodeDetails(midPt);
-    if (geo.route) s.name = geo.route;
-    s.nameFixed = true;
-    await new Promise(r => setTimeout(r, 200));
+    const path = s.path && s.path.length >= 2 ? s.path : null;
+
+    // Sample 3 points along the path (25%, 50%, 75%) and pick most common route
+    const sampleTs = path ? [0.25, 0.5, 0.75] : [0.5];
+    const routes = [];
+    for (const t of sampleTs) {
+      const pt = path ? getPathPointAt(path, t) : { lat: s.lat, lng: s.lng };
+      const geo = await geocodeDetails(pt);
+      if (geo.route) routes.push(geo.route);
+      await new Promise(r => setTimeout(r, 250));
+    }
+
+    if (routes.length > 0) {
+      // Pick most common route name
+      const freq = {};
+      routes.forEach(r => freq[r] = (freq[r] || 0) + 1);
+      s.name = Object.entries(freq).sort((a, b) => b[1] - a[1])[0][0];
+    }
+    s.nameFixed = 2;
   }
 
   saveProjects();
