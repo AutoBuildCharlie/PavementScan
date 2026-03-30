@@ -1989,14 +1989,19 @@ function drawAllHighlights() {
     line.addListener('click', () => selectStreet(street.id));
     polylines.push(line);
 
-    // Boundary crossing marker
+    // Boundary crossing marker + city labels on each side
     if (street.crossesBoundary && street.boundaryPoint) {
+      const path = street.path;
+      const startCity = street.city || 'Start';
+      const endCity   = street.endCity || 'End';
+
+      // Diamond at boundary midpoint
       const bMarker = new google.maps.Marker({
         position: street.boundaryPoint,
         map: map,
         title: street.boundaryNote,
         icon: {
-          path: 'M 0,-10 10,0 0,10 -10,0 Z', // diamond shape
+          path: 'M 0,-10 10,0 0,10 -10,0 Z',
           fillColor: '#f97316',
           fillOpacity: 1,
           strokeColor: '#fff',
@@ -2007,6 +2012,32 @@ function drawAllHighlights() {
       });
       bMarker.addListener('click', () => selectStreet(street.id));
       polylines.push(bMarker);
+
+      // City label — start side (35% along path)
+      const t1 = Math.floor(path.length * 0.25);
+      const startLabel = new google.maps.Marker({
+        position: path[Math.max(0, t1)],
+        map: map,
+        title: startCity,
+        icon: { path: google.maps.SymbolPath.CIRCLE, scale: 0 },
+        label: { text: startCity, color: '#f97316', fontSize: '11px', fontWeight: 'bold' },
+        zIndex: 9
+      });
+      startLabel.addListener('click', () => selectStreet(street.id));
+      polylines.push(startLabel);
+
+      // City label — end side (75% along path)
+      const t2 = Math.floor(path.length * 0.75);
+      const endLabel = new google.maps.Marker({
+        position: path[Math.min(path.length - 1, t2)],
+        map: map,
+        title: endCity,
+        icon: { path: google.maps.SymbolPath.CIRCLE, scale: 0 },
+        label: { text: endCity, color: '#f97316', fontSize: '11px', fontWeight: 'bold' },
+        zIndex: 9
+      });
+      endLabel.addListener('click', () => selectStreet(street.id));
+      polylines.push(endLabel);
     }
   });
 }
