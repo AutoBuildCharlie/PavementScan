@@ -18,8 +18,7 @@
        notes:          "Parking lot near freeway",
        analysis:       "AI analysis text...",
        svImage:        "street-view-url",
-       highlightStart: { lat, lng },
-       highlightEnd:   { lat, lng },
+       path:           [{ lat, lng }, { lat, lng }, ...],  // multi-point highlight
        photos:         [{ id, dataUrl, lat, lng, address, note, takenAt }],
        scannedAt:      "2026-03-30T07:42:00Z",
        createdAt:      "2026-03-30T07:40:00Z"
@@ -32,10 +31,12 @@ let map = null;
 let markers = [];
 let streets = [];
 let activeStreetId = null;
-let highlightMode = null; // null | 'start' | 'end'
+let highlightMode = null;
 let highlightStreetId = null;
-let highlightMarkers = []; // temp start/end markers
-let polylines = []; // drawn street lines
+let highlightMarkers = []; // temp markers while drawing
+let polylines = []; // drawn street lines + markers
+let tempPolyline = null; // live polyline while drawing
+let tempPath = []; // points being drawn
 const STORAGE_KEY = 'cse_streets';
 const GEOCODE_BASE = 'https://maps.googleapis.com/maps/api/geocode/json';
 const SV_BASE = 'https://maps.googleapis.com/maps/api/streetview';
@@ -62,8 +63,9 @@ function initMap() {
     }
   });
 
-  // Map click listener for highlight mode
+  // Map click listeners
   map.addListener('click', (e) => handleMapClick(e.latLng));
+  map.addListener('dblclick', (e) => handleMapDblClick(e.latLng));
 
   renderStreetList();
   placeAllMarkers();
@@ -419,9 +421,9 @@ function selectStreet(id) {
     </div>
 
     <div class="detail-actions">
-      ${street.highlightStart ?
+      ${(street.path || street.highlightStart) ?
         `<button class="btn-secondary" onclick="removeHighlight('${street.id}')">Clear Line</button>` :
-        `<button class="btn-highlight" onclick="startHighlight('${street.id}')">Highlight Street</button>`
+        `<button class="btn-highlight" onclick="startFreeHighlight()">Highlight Street</button>`
       }
       <button class="btn-rescan" onclick="rescanStreet('${street.id}')">Re-scan</button>
       <button class="btn-danger" onclick="deleteStreet('${street.id}')">Delete</button>
@@ -758,19 +760,21 @@ function closeStreetViewPanel() {
   document.querySelector('.qa-streetview').classList.remove('qa-active');
 }
 
-// ─── FREE HIGHLIGHT (continuous drawing mode) ──────────────
+// ─── FREE HIGHLIGHT (continuous multi-point drawing) ───────
 let drawingMode = false;
+let drawCount = 0;
 
 function startFreeHighlight() {
   if (drawingMode) { stopDrawingMode(); return; }
+  if (streetViewMode) toggleStreetView(); // turn off street view
   drawingMode = true;
-  highlightMode = 'free-start';
-  highlightStreetId = null;
+  highlightMode = 'drawing';
+  tempPath = [];
   clearTempMarkers();
+  clearTempPolyline();
   document.getElementById('highlight-bar').classList.remove('hidden');
-  document.getElementById('highlight-bar-text').textContent = 'Click the START of street 1';
+  document.getElementById('highlight-bar-text').textContent = 'Click along the street to trace it — double-click to finish';
   document.getElementById('detail-panel').classList.add('hidden');
-  // Change button to active state
   document.querySelector('.qa-highlight').classList.add('qa-active');
 }
 
@@ -782,11 +786,16 @@ function stopDrawingMode() {
   drawingMode = false;
   highlightMode = null;
   highlightStreetId = null;
+  tempPath = [];
   clearTempMarkers();
+  clearTempPolyline();
   document.getElementById('highlight-bar').classList.add('hidden');
   document.querySelector('.qa-highlight').classList.remove('qa-active');
-  window._freeHighlightStart = null;
-  window._drawCount = 0;
+  drawCount = 0;
+}
+
+function clearTempPolyline() {
+  if (tempPolyline) { tempPolyline.setMap(null); tempPolyline = null; }
 }
 
 // ─── FREE PHOTO (from sidebar, assigns to nearest street or creates one) ──
@@ -874,135 +883,111 @@ function findNearestStreet(lat, lng) {
   return minDist < 500 ? nearest : null;
 }
 
-// ─── HIGHLIGHT STREET (from detail panel) ──────────────────
-function startHighlight(id) {
-  highlightStreetId = id;
-  highlightMode = 'start';
-  clearTempMarkers();
-  document.getElementById('highlight-bar').classList.remove('hidden');
-  document.getElementById('highlight-bar-text').textContent = 'Click the START of the street on the map';
-  document.getElementById('detail-panel').classList.add('hidden');
-}
 
 function handleMapClick(latLng) {
-  // Street View mode — open panorama at click location
+  // Street View mode
   if (streetViewMode) {
     openStreetViewAt(latLng.lat(), latLng.lng());
     return;
   }
 
-  if (!highlightMode) return;
+  if (highlightMode !== 'drawing') return;
 
-  // Free highlight mode — continuous drawing
-  if (highlightMode === 'free-start') {
-    window._freeHighlightStart = { lat: latLng.lat(), lng: latLng.lng() };
-    addTempMarker(latLng, 'S', '#22c55e');
-    highlightMode = 'free-end';
-    document.getElementById('highlight-bar-text').textContent = 'Now click the END of this street';
+  const point = { lat: latLng.lat(), lng: latLng.lng() };
+  tempPath.push(point);
+
+  // Add dot marker
+  const isFirst = tempPath.length === 1;
+  addTempMarker(latLng, isFirst ? 'S' : String(tempPath.length), isFirst ? '#22c55e' : '#3b82f6');
+
+  // Draw/update live polyline
+  if (tempPolyline) tempPolyline.setMap(null);
+  tempPolyline = new google.maps.Polyline({
+    path: tempPath,
+    geodesic: true,
+    strokeColor: '#3b82f6',
+    strokeOpacity: 0.8,
+    strokeWeight: 5,
+    map: map
+  });
+
+  // Calculate running total length
+  const totalFt = calcPathLength(tempPath);
+  document.getElementById('highlight-bar-text').textContent = `${tempPath.length} points — ${formatNumber(Math.round(totalFt))} ft — click next point or double-click to finish`;
+}
+
+// Double-click finishes the current street
+function handleMapDblClick(latLng) {
+  if (highlightMode !== 'drawing' || tempPath.length < 2) return;
+
+  finishCurrentStreet();
+}
+
+async function finishCurrentStreet() {
+  if (tempPath.length < 2) {
+    showToast('Need at least 2 points');
     return;
   }
 
-  if (highlightMode === 'free-end') {
-    const startPt = window._freeHighlightStart;
-    const endPt = { lat: latLng.lat(), lng: latLng.lng() };
-    addTempMarker(latLng, 'E', '#ef4444');
+  const firstPt = tempPath[0];
+  const totalFt = Math.round(calcPathLength(tempPath));
 
-    (async () => {
-      // Create a new street for this highlight
-      let address = 'Unknown location';
-      try {
-        const geocoder = new google.maps.Geocoder();
-        const result = await new Promise((resolve) => {
-          geocoder.geocode({ location: startPt }, (results, status) => {
-            resolve(status === 'OK' && results.length > 0 ? results[0].formatted_address : '');
-          });
-        });
-        if (result) address = result;
-      } catch (e) { /* skip */ }
-
-      const street = {
-        id: crypto.randomUUID?.() || Date.now().toString(36),
-        name: address,
-        lat: startPt.lat,
-        lng: startPt.lng,
-        length: 0,
-        width: 24,
-        sqft: 0,
-        rating: 'pending',
-        notes: '',
-        analysis: '',
-        svImage: getStreetViewUrl(startPt.lat, startPt.lng),
-        photos: [],
-        scannedAt: null,
-        createdAt: new Date().toISOString()
-      };
-
-      street.highlightStart = startPt;
-      street.highlightEnd = endPt;
-      const distFt = calcDistanceFt(startPt, endPt);
-      street.length = Math.round(distFt);
-      street.sqft = street.length * (street.width || 24);
-
-      streets.push(street);
-      saveStreets();
-      clearTempMarkers();
-      drawAllHighlights();
-      renderStreetList();
-      placeAllMarkers();
-      updateStats();
-
-      // Track how many streets drawn
-      window._drawCount = (window._drawCount || 0) + 1;
-
-      // Stay in drawing mode — ready for next street
-      highlightMode = 'free-start';
-      window._freeHighlightStart = null;
-      document.getElementById('highlight-bar-text').textContent = `Street ${window._drawCount} done (${formatNumber(street.length)} ft) — scanning... click START of next street, or Done`;
-      showToast(`${formatNumber(street.length)} ft — ${formatNumber(street.sqft)} sq ft`);
-
-      // Auto-scan in background (doesn't block drawing)
-      analyzeStreetView(street).then(analysis => {
-        street.analysis = analysis.text;
-        street.rating = analysis.rating;
-        street.scannedAt = new Date().toISOString();
-        saveStreets();
-        drawAllHighlights();
-        renderStreetList();
-        updateStats();
+  // Geocode the first point for the street name
+  let address = 'Unknown location';
+  try {
+    const geocoder = new google.maps.Geocoder();
+    const result = await new Promise((resolve) => {
+      geocoder.geocode({ location: firstPt }, (results, status) => {
+        resolve(status === 'OK' && results.length > 0 ? results[0].formatted_address : '');
       });
-    })();
-    return;
-  }
+    });
+    if (result) address = result;
+  } catch (e) { /* skip */ }
 
-  // Existing street highlight mode
-  const street = streets.find(s => s.id === highlightStreetId);
-  if (!street) return;
+  const street = {
+    id: crypto.randomUUID?.() || Date.now().toString(36),
+    name: address,
+    lat: firstPt.lat,
+    lng: firstPt.lng,
+    length: totalFt,
+    width: 24,
+    sqft: totalFt * 24,
+    rating: 'pending',
+    notes: '',
+    analysis: '',
+    svImage: getStreetViewUrl(firstPt.lat, firstPt.lng),
+    path: [...tempPath],
+    photos: [],
+    scannedAt: null,
+    createdAt: new Date().toISOString()
+  };
 
-  if (highlightMode === 'start') {
-    street.highlightStart = { lat: latLng.lat(), lng: latLng.lng() };
-    addTempMarker(latLng, 'S', '#22c55e');
-    highlightMode = 'end';
-    document.getElementById('highlight-bar-text').textContent = 'Now click the END of the street';
+  streets.push(street);
+  saveStreets();
 
-  } else if (highlightMode === 'end') {
-    street.highlightEnd = { lat: latLng.lat(), lng: latLng.lng() };
-    addTempMarker(latLng, 'E', '#ef4444');
+  // Reset for next street
+  tempPath = [];
+  clearTempMarkers();
+  clearTempPolyline();
+  drawAllHighlights();
+  renderStreetList();
+  placeAllMarkers();
+  updateStats();
 
-    const distFt = calcDistanceFt(street.highlightStart, street.highlightEnd);
-    street.length = Math.round(distFt);
-    street.sqft = street.length * (street.width || 24);
+  drawCount++;
+  document.getElementById('highlight-bar-text').textContent = `Street ${drawCount} done (${formatNumber(totalFt)} ft) — start next street or click Done`;
+  showToast(`${formatNumber(totalFt)} ft — ${formatNumber(street.sqft)} sq ft`);
 
-    highlightMode = null;
-    highlightStreetId = null;
-    document.getElementById('highlight-bar').classList.add('hidden');
+  // Auto-scan in background
+  analyzeStreetView(street).then(analysis => {
+    street.analysis = analysis.text;
+    street.rating = analysis.rating;
+    street.scannedAt = new Date().toISOString();
     saveStreets();
-    clearTempMarkers();
     drawAllHighlights();
-    updateStats();
     renderStreetList();
-    selectStreet(street.id);
-    showToast(`Street highlighted — ${formatNumber(street.length)} ft long, ${formatNumber(street.sqft)} sq ft`);
-  }
+    updateStats();
+  });
 }
 
 function addTempMarker(latLng, label, color) {
@@ -1028,16 +1013,20 @@ function clearTempMarkers() {
 }
 
 function drawAllHighlights() {
-  // Clear existing polylines
   polylines.forEach(p => p.setMap(null));
   polylines = [];
 
   streets.forEach(street => {
-    if (!street.highlightStart || !street.highlightEnd) return;
+    // Support old format (highlightStart/End) and new format (path)
+    let pathPoints = street.path;
+    if (!pathPoints && street.highlightStart && street.highlightEnd) {
+      pathPoints = [street.highlightStart, street.highlightEnd];
+    }
+    if (!pathPoints || pathPoints.length < 2) return;
 
     const color = ratingColor(street.rating);
     const line = new google.maps.Polyline({
-      path: [street.highlightStart, street.highlightEnd],
+      path: pathPoints,
       geodesic: true,
       strokeColor: color,
       strokeOpacity: 0.9,
@@ -1045,41 +1034,49 @@ function drawAllHighlights() {
       map: map
     });
 
-    // Click polyline to select street
     line.addListener('click', () => selectStreet(street.id));
     polylines.push(line);
 
-    // Start/end markers
-    [{ pos: street.highlightStart, label: 'S', clr: '#22c55e' },
-     { pos: street.highlightEnd, label: 'E', clr: '#ef4444' }].forEach(m => {
-      const mk = new google.maps.Marker({
-        position: m.pos,
-        map: map,
-        label: { text: m.label, color: '#fff', fontWeight: '700', fontSize: '11px' },
-        icon: {
-          path: google.maps.SymbolPath.CIRCLE,
-          scale: 10,
-          fillColor: m.clr,
-          fillOpacity: 1,
-          strokeColor: '#fff',
-          strokeWeight: 2
-        }
-      });
-      mk.addListener('click', () => selectStreet(street.id));
-      polylines.push(mk); // store so we can clear later
+    // Start marker
+    const startMk = new google.maps.Marker({
+      position: pathPoints[0],
+      map: map,
+      label: { text: 'S', color: '#fff', fontWeight: '700', fontSize: '11px' },
+      icon: { path: google.maps.SymbolPath.CIRCLE, scale: 10, fillColor: '#22c55e', fillOpacity: 1, strokeColor: '#fff', strokeWeight: 2 }
     });
+    startMk.addListener('click', () => selectStreet(street.id));
+    polylines.push(startMk);
+
+    // End marker
+    const endMk = new google.maps.Marker({
+      position: pathPoints[pathPoints.length - 1],
+      map: map,
+      label: { text: 'E', color: '#fff', fontWeight: '700', fontSize: '11px' },
+      icon: { path: google.maps.SymbolPath.CIRCLE, scale: 10, fillColor: '#ef4444', fillOpacity: 1, strokeColor: '#fff', strokeWeight: 2 }
+    });
+    endMk.addListener('click', () => selectStreet(street.id));
+    polylines.push(endMk);
   });
 }
 
 function removeHighlight(id) {
   const street = streets.find(s => s.id === id);
   if (!street) return;
+  delete street.path;
   delete street.highlightStart;
   delete street.highlightEnd;
   saveStreets();
   drawAllHighlights();
   selectStreet(id);
   showToast('Highlight removed');
+}
+
+function calcPathLength(path) {
+  let total = 0;
+  for (let i = 1; i < path.length; i++) {
+    total += calcDistanceFt(path[i - 1], path[i]);
+  }
+  return total;
 }
 
 function calcDistanceFt(p1, p2) {
