@@ -849,9 +849,9 @@ function selectStreet(id) {
   // Highlight card
   renderStreetList();
 
-  // Center map
-  map.setCenter({ lat: street.lat, lng: street.lng });
-  map.setZoom(16);
+  // Pan to street — only zoom in if too far out, never zoom out
+  map.panTo({ lat: street.lat, lng: street.lng });
+  if (map.getZoom() < 15) map.setZoom(16);
 
   // If Street View is open, jump to this street
   const svOpen = streetViewPano && !document.getElementById('streetview-panel').classList.contains('hidden');
