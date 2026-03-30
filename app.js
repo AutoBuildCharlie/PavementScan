@@ -511,12 +511,9 @@ function getStreetViewUrlHD(lat, lng, heading = 0) {
 
 // ─── AI ANALYSIS ───────────────────────────────────────────
 
-// Determine how many mid-street photos based on length
+// 1 mid photo per ~200ft (≈ every 4 homes), max 5
 function getMidPhotoCount(lengthFt) {
-  if (lengthFt < 500) return 0;   // side streets — corners only
-  if (lengthFt < 1500) return 1;  // standard — 1 mid
-  if (lengthFt < 3000) return 2;  // long — 2 mid
-  return 3;                        // major — 3 mid
+  return Math.min(5, Math.floor(lengthFt / 200));
 }
 
 // Calculate sample points — always looking INTO the street from each endpoint
