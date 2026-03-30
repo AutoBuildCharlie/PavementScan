@@ -385,7 +385,7 @@ function selectStreet(id) {
 
     <div class="detail-section">
       <h4>Street View</h4>
-      <img class="streetview-img" src="${street.svImage}" alt="Street View of ${escHtml(street.name)}" onerror="this.src=''; this.alt='Street View not available'">
+      <img class="streetview-img" src="${street.svImage}" alt="Street View of ${escHtml(street.name)}" onclick="openStreetViewAt(${street.lat}, ${street.lng})" style="cursor:pointer" title="Click to open interactive Street View" onerror="this.src=''; this.alt='Street View not available'">
     </div>
 
     <div class="detail-section">
@@ -716,6 +716,48 @@ function placePhotoMarkers() {
   });
 }
 
+// ─── STREET VIEW MODE ──────────────────────────────────────
+let streetViewMode = false;
+let streetViewPano = null;
+
+function toggleStreetView() {
+  if (streetViewMode) {
+    streetViewMode = false;
+    document.querySelector('.qa-streetview').classList.remove('qa-active');
+    showToast('Street View mode off');
+    return;
+  }
+  // Turn off other modes
+  if (drawingMode) stopDrawingMode();
+  streetViewMode = true;
+  document.querySelector('.qa-streetview').classList.add('qa-active');
+  showToast('Click anywhere on the map to open Street View');
+}
+
+function openStreetViewAt(lat, lng) {
+  const panel = document.getElementById('streetview-panel');
+  panel.classList.remove('hidden');
+
+  streetViewPano = new google.maps.StreetViewPanorama(
+    document.getElementById('streetview-pano'), {
+      position: { lat, lng },
+      pov: { heading: 0, pitch: -5 },
+      zoom: 1,
+      motionTracking: false,
+      motionTrackingControl: false,
+      addressControl: true,
+      fullscreenControl: false
+    }
+  );
+}
+
+function closeStreetViewPanel() {
+  document.getElementById('streetview-panel').classList.add('hidden');
+  streetViewPano = null;
+  streetViewMode = false;
+  document.querySelector('.qa-streetview').classList.remove('qa-active');
+}
+
 // ─── FREE HIGHLIGHT (continuous drawing mode) ──────────────
 let drawingMode = false;
 
@@ -843,6 +885,12 @@ function startHighlight(id) {
 }
 
 function handleMapClick(latLng) {
+  // Street View mode — open panorama at click location
+  if (streetViewMode) {
+    openStreetViewAt(latLng.lat(), latLng.lng());
+    return;
+  }
+
   if (!highlightMode) return;
 
   // Free highlight mode — continuous drawing
