@@ -637,6 +637,15 @@ function selectStreet(id) {
   map.setCenter({ lat: street.lat, lng: street.lng });
   map.setZoom(16);
 
+  // If Street View is open, jump to this street
+  if (streetViewPano && !document.getElementById('streetview-panel').classList.contains('hidden')) {
+    streetViewPano.setPosition({ lat: street.lat, lng: street.lng });
+    if (miniMapMarker) {
+      miniMapMarker.setPosition({ lat: street.lat, lng: street.lng });
+      if (miniMap) miniMap.setCenter({ lat: street.lat, lng: street.lng });
+    }
+  }
+
   // Show detail panel
   const panel = document.getElementById('detail-panel');
   panel.classList.remove('hidden');
