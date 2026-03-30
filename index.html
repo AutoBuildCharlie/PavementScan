@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Cracking &amp; Sealing Est.</title>
+  <link rel="stylesheet" href="style.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+</head>
+<body>
+
+  <!-- ─── HEADER ──────────────────────────────────────────── -->
+  <header id="app-header">
+    <div class="header-left">
+      <h1>Cracking &amp; Sealing <em>Est.</em></h1>
+      <span class="header-sub">Street Assessment Tool</span>
+    </div>
+    <div class="header-right">
+      <div class="stat-pill" id="stat-streets">
+        <span class="stat-label">Streets</span>
+        <span class="stat-value" id="total-streets">0</span>
+      </div>
+      <div class="stat-pill" id="stat-sqft">
+        <span class="stat-label">Total Sq Ft</span>
+        <span class="stat-value" id="total-sqft">0</span>
+      </div>
+      <div class="stat-pill" id="stat-rating">
+        <span class="stat-label">Avg Rating</span>
+        <span class="stat-value" id="avg-rating">—</span>
+      </div>
+    </div>
+  </header>
+
+  <!-- ─── MAIN LAYOUT ────────────────────────────────────── -->
+  <main id="app-main">
+
+    <!-- LEFT PANEL — Street List -->
+    <aside id="street-panel">
+      <div class="panel-header">
+        <h2>Streets</h2>
+        <button id="btn-add-street" class="btn-primary" onclick="openAddStreetModal()">+ Add Street</button>
+      </div>
+      <div id="street-list" class="street-list">
+        <div class="empty-state">No streets added yet.<br>Click <strong>+ Add Street</strong> to begin.</div>
+      </div>
+    </aside>
+
+    <!-- CENTER — Map -->
+    <section id="map-container">
+      <div id="map"></div>
+    </section>
+
+    <!-- RIGHT PANEL — Street Detail -->
+    <aside id="detail-panel" class="hidden">
+      <button class="btn-close" onclick="closeDetailPanel()">&times;</button>
+      <div id="detail-content"></div>
+    </aside>
+
+  </main>
+
+  <!-- ─── ADD STREET MODAL ────────────────────────────────── -->
+  <div id="modal-overlay" class="modal-overlay hidden" onclick="closeModal(event)">
+    <div class="modal" onclick="event.stopPropagation()">
+      <h3>Add Street</h3>
+      <div class="form-group">
+        <label for="input-street-name">Street Name</label>
+        <input type="text" id="input-street-name" placeholder="e.g. 1200 W Ball Rd, Anaheim, CA">
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label for="input-length">Length (ft)</label>
+          <input type="number" id="input-length" placeholder="e.g. 500">
+        </div>
+        <div class="form-group">
+          <label for="input-width">Width (ft)</label>
+          <input type="number" id="input-width" placeholder="e.g. 24">
+        </div>
+      </div>
+      <div class="form-group">
+        <label for="input-notes">Notes (optional)</label>
+        <textarea id="input-notes" rows="2" placeholder="Parking lot, residential, etc."></textarea>
+      </div>
+      <div class="modal-actions">
+        <button class="btn-secondary" onclick="closeModal()">Cancel</button>
+        <button class="btn-primary" id="btn-save-street" onclick="saveStreet()">Add &amp; Scan</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ─── SCANNING MODAL ─────────────────────────────────── -->
+  <div id="scan-overlay" class="modal-overlay hidden">
+    <div class="modal scan-modal">
+      <div class="scan-spinner"></div>
+      <h3>Scanning Street View...</h3>
+      <p id="scan-status">Pulling imagery and analyzing pavement condition</p>
+    </div>
+  </div>
+
+  <!-- ─── SCRIPTS ─────────────────────────────────────────── -->
+  <script src="app.js"></script>
+  <script async defer
+    src="https://maps.googleapis.com/maps/api/js?key=AIzaSyALUzyaUCMmtVah_gcnoe-g2VGeezsPkZ8&callback=initMap">
+  </script>
+
+</body>
+</html>
