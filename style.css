@@ -642,6 +642,22 @@ body {
   line-height: 1.6;
   white-space: pre-wrap;
 }
+.analysis-section-level-1 { border-left: 3px solid #22c55e; }
+.analysis-section-level-2 { border-left: 3px solid #eab308; }
+.analysis-section-level-3 { border-left: 3px solid #f97316; }
+.analysis-section-level-4 { border-left: 3px solid #ef4444; }
+.analysis-rating-summary {
+  font-size: 12px;
+  font-weight: 600;
+  margin-bottom: 8px;
+  padding: 4px 8px;
+  border-radius: 4px;
+  background: rgba(255,255,255,0.03);
+}
+.analysis-section-level-1 .analysis-rating-summary { color: #22c55e; }
+.analysis-section-level-2 .analysis-rating-summary { color: #eab308; }
+.analysis-section-level-3 .analysis-rating-summary { color: #f97316; }
+.analysis-section-level-4 .analysis-rating-summary { color: #ef4444; }
 .admin-notes {
   background: rgba(34,197,94,0.05);
   border: 1px solid rgba(34,197,94,0.2);

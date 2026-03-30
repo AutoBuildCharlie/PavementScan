@@ -841,10 +841,10 @@ function selectStreet(id) {
         <div class="detail-stat-label">Rating</div>
         <div class="detail-stat-value"><span class="rating-badge rating-${street.rating}">${ratingLabel(street.rating)}</span></div>
         <select class="rating-select rating-${street.rating}" onchange="setRating('${street.id}', this.value)">
-          <option value="level-1" ${street.rating === 'level-1' ? 'selected' : ''}>LVL 1 — Little cracks</option>
-          <option value="level-2" ${street.rating === 'level-2' ? 'selected' : ''}>LVL 2 — Light cracks</option>
-          <option value="level-3" ${street.rating === 'level-3' ? 'selected' : ''}>LVL 3 — Deep + alligator</option>
-          <option value="level-4" ${street.rating === 'level-4' ? 'selected' : ''}>LVL 4 — Severe</option>
+          <option value="level-1" ${street.rating === 'level-1' ? 'selected' : ''}>LVL 1</option>
+          <option value="level-2" ${street.rating === 'level-2' ? 'selected' : ''}>LVL 2</option>
+          <option value="level-3" ${street.rating === 'level-3' ? 'selected' : ''}>LVL 3</option>
+          <option value="level-4" ${street.rating === 'level-4' ? 'selected' : ''}>LVL 4</option>
         </select>
       </div>
       <div class="detail-stat">
@@ -864,10 +864,11 @@ function selectStreet(id) {
     </div>
 
     ${activeProject.aiEnabled !== false ? `
-    <div class="detail-section">
+    <div class="detail-section analysis-section-${street.rating}">
       <h4>AI Pavement Analysis ${street.photosScanned ? `(${street.photosScanned} photo${street.photosScanned > 1 ? 's' : ''} scanned)` : ''}
         <button class="btn-edit-analysis" onclick="toggleEditAnalysis('${street.id}')" id="edit-analysis-btn">Edit</button>
       </h4>
+      <div class="analysis-rating-summary">${ratingLabel(street.rating)} — ${ratingDescription(street.rating)}</div>
       <div class="ai-analysis" id="analysis-display">${escHtml(street.analysis || 'No analysis available')}</div>
       <div class="analysis-edit-area hidden" id="analysis-edit">
         <textarea id="analysis-textarea" class="analysis-textarea">${escHtml(street.analysis || '')}</textarea>
