@@ -182,25 +182,24 @@ async function saveStreet() {
   }
 }
 
-// ─── GEOCODING ─────────────────────────────────────────────
-async function geocodeAddress(address) {
-  try {
-    const url = `${GEOCODE_BASE}?address=${encodeURIComponent(address)}&key=${API_KEY}`;
-    const res = await fetch(url);
-    const data = await res.json();
-    if (data.status === 'OK' && data.results.length > 0) {
-      const result = data.results[0];
-      return {
-        lat: result.geometry.location.lat,
-        lng: result.geometry.location.lng,
-        formatted: result.formatted_address
-      };
-    }
-    return null;
-  } catch (e) {
-    console.error('Geocoding error:', e);
-    return null;
-  }
+// ─── GEOCODING (uses built-in Maps JS geocoder) ───────────
+function geocodeAddress(address) {
+  return new Promise((resolve) => {
+    const geocoder = new google.maps.Geocoder();
+    geocoder.geocode({ address: address }, (results, status) => {
+      if (status === 'OK' && results.length > 0) {
+        const result = results[0];
+        resolve({
+          lat: result.geometry.location.lat(),
+          lng: result.geometry.location.lng(),
+          formatted: result.formatted_address
+        });
+      } else {
+        console.error('Geocoding failed:', status);
+        resolve(null);
+      }
+    });
+  });
 }
 
 // ─── STREET VIEW ───────────────────────────────────────────
@@ -623,12 +622,13 @@ async function handlePhotoCapture(e, streetId) {
   // Reverse geocode to get address
   if (photo.lat && photo.lng) {
     try {
-      const url = `${GEOCODE_BASE}?latlng=${photo.lat},${photo.lng}&key=${API_KEY}`;
-      const res = await fetch(url);
-      const data = await res.json();
-      if (data.status === 'OK' && data.results.length > 0) {
-        photo.address = data.results[0].formatted_address;
-      }
+      const geocoder = new google.maps.Geocoder();
+      const result = await new Promise((resolve) => {
+        geocoder.geocode({ location: { lat: photo.lat, lng: photo.lng } }, (results, status) => {
+          resolve(status === 'OK' && results.length > 0 ? results[0].formatted_address : '');
+        });
+      });
+      photo.address = result;
     } catch (e) { /* skip */ }
   }
 
