@@ -919,9 +919,9 @@ function selectStreet(id) {
       <h4>Photos AI Analyzed (${street.scanPhotos.length})</h4>
       <div class="scan-photo-grid">
         ${street.scanPhotos.map((p, i) => `
-          <div class="scan-photo-card" onclick="openLightbox(${JSON.stringify(street.scanPhotos).replace(/"/g, '&quot;')}, ${i})" title="Click to enlarge">
-            <img src="${p.hdUrl || p.url}" alt="${escHtml(p.label)}" class="scan-photo-img" onerror="this.style.display='none'">
-            <div class="scan-photo-label">${escHtml(p.label)}</div>
+          <div class="scan-photo-card" onclick="openLightbox(${JSON.stringify(street.scanPhotos).replace(/"/g, '&quot;')}, ${i})" title="Click to view photo">
+            <span class="scan-photo-icon">&#128247;</span>
+            <span>${escHtml(p.label)}</span>
           </div>
         `).join('')}
       </div>
