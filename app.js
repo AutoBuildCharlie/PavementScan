@@ -87,12 +87,16 @@ function closeModal(e) {
 }
 
 function showScanModal(msg) {
+  const el = document.getElementById('scan-overlay');
   document.getElementById('scan-status').textContent = msg || 'Pulling imagery and analyzing pavement condition';
-  document.getElementById('scan-overlay').classList.remove('hidden');
+  el.style.display = 'flex';
+  el.classList.remove('hidden');
 }
 
 function hideScanModal() {
-  document.getElementById('scan-overlay').classList.add('hidden');
+  const el = document.getElementById('scan-overlay');
+  el.style.display = 'none';
+  el.classList.add('hidden');
 }
 
 // ─── ADD STREET ────────────────────────────────────────────
