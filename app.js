@@ -236,6 +236,22 @@ function migrateOldData() {
     }
     localStorage.removeItem('cse_streets');
   } catch { /* skip */ }
+
+  // Migrate old rating names → Level 1-4
+  const ratingMap = { good: 'level-1', fair: 'level-2', poor: 'level-3', critical: 'level-4' };
+  let changed = false;
+  projects.forEach(p => {
+    p.streets.forEach(s => {
+      if (ratingMap[s.rating]) {
+        s.rating = ratingMap[s.rating];
+        changed = true;
+      }
+    });
+  });
+  if (changed) {
+    streets = activeProject.streets;
+    saveProjects();
+  }
 }
 
 // ─── CITY/COUNTY DETECTION ──────────────────────────────────
@@ -592,20 +608,20 @@ function extractWeedAlert(text) {
 
 function ratingLabel(rating) {
   switch (rating) {
-    case 'level-1': return 'LVL 1';
-    case 'level-2': return 'LVL 2';
-    case 'level-3': return 'LVL 3';
-    case 'level-4': return 'LVL 4';
+    case 'level-1': case 'good': return 'LVL 1';
+    case 'level-2': case 'fair': return 'LVL 2';
+    case 'level-3': case 'poor': return 'LVL 3';
+    case 'level-4': case 'critical': return 'LVL 4';
     default: return rating.toUpperCase();
   }
 }
 
 function ratingDescription(rating) {
   switch (rating) {
-    case 'level-1': return 'Zero to little cracks';
-    case 'level-2': return 'Moderate light amount of cracks';
-    case 'level-3': return 'Moderate heavy, deep cracks & alligator';
-    case 'level-4': return 'Alligator everywhere, deep cracks every 3-5 ft';
+    case 'level-1': case 'good': return 'Zero to little cracks';
+    case 'level-2': case 'fair': return 'Moderate light amount of cracks';
+    case 'level-3': case 'poor': return 'Moderate heavy, deep cracks & alligator';
+    case 'level-4': case 'critical': return 'Alligator everywhere, deep cracks every 3-5 ft';
     default: return '';
   }
 }
