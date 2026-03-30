@@ -962,16 +962,32 @@ function selectStreet(id) {
         miniMapLines.push(line);
       });
 
-      // Track position changes
+      // Track position changes — auto-switch to nearest street
       if (streetViewPano) {
         streetViewPano.addListener('position_changed', () => {
           const pos = streetViewPano.getPosition();
           if (miniMapMarker) { miniMapMarker.setPosition(pos); miniMap.setCenter(pos); }
+
+          // Update address label
           const geocoder = new google.maps.Geocoder();
           geocoder.geocode({ location: { lat: pos.lat(), lng: pos.lng() } }, (results, status) => {
             const el = document.getElementById('mini-map-address');
             if (el && status === 'OK' && results.length > 0) el.textContent = results[0].formatted_address;
           });
+
+          // Find nearest project street and auto-switch if close enough
+          if (streets.length > 1) {
+            const pLat = pos.lat(), pLng = pos.lng();
+            let nearest = null, minDist = Infinity;
+            streets.forEach(s => {
+              const d = Math.sqrt(Math.pow(s.lat - pLat, 2) + Math.pow(s.lng - pLng, 2));
+              if (d < minDist) { minDist = d; nearest = s; }
+            });
+            // ~0.002 degrees ≈ 700 ft — close enough to auto-switch
+            if (nearest && nearest.id !== activeStreetId && minDist < 0.002) {
+              selectStreet(nearest.id);
+            }
+          }
         });
       }
     }, 100);
@@ -1125,12 +1141,29 @@ function confirmDelete(id) {
 
 // ─── UPDATE STATS ──────────────────────────────────────────
 function updateStats() {
-  document.getElementById('total-streets').textContent = streets.length;
+  const svOpen = isStreetViewOpen();
+  const activeStreet = activeStreetId ? streets.find(s => s.id === activeStreetId) : null;
 
+  // When viewing a single street in Street View, show that street's stats
+  if (svOpen && activeStreet) {
+    document.getElementById('stat-streets').querySelector('.stat-label').textContent = 'Viewing';
+    document.getElementById('total-streets').textContent = '1 / ' + streets.length;
+    document.getElementById('stat-sqft').querySelector('.stat-label').textContent = 'Sq Ft';
+    document.getElementById('total-sqft').textContent = formatNumber(activeStreet.sqft || 0);
+    document.getElementById('stat-rating').querySelector('.stat-label').textContent = 'Rating';
+    document.getElementById('avg-rating').textContent = ratingLabel(activeStreet.rating);
+    return;
+  }
+
+  // Project-wide stats
+  document.getElementById('stat-streets').querySelector('.stat-label').textContent = 'Streets';
+  document.getElementById('total-streets').textContent = streets.length;
+  document.getElementById('stat-sqft').querySelector('.stat-label').textContent = 'Total Sq Ft';
   const totalSqft = streets.reduce((sum, s) => sum + (s.sqft || 0), 0);
   document.getElementById('total-sqft').textContent = formatNumber(totalSqft);
 
   // Average rating (Level 1-4)
+  document.getElementById('stat-rating').querySelector('.stat-label').textContent = 'Avg Rating';
   const ratingValues = { 'level-1': 1, 'level-2': 2, 'level-3': 3, 'level-4': 4, good: 1, fair: 2, poor: 3, critical: 4, pending: 0 };
   const rated = streets.filter(s => s.rating !== 'pending');
   if (rated.length > 0) {
@@ -1423,6 +1456,7 @@ function closeStreetViewPanel() {
   streetViewMode = false;
   document.querySelector('.qa-streetview').classList.remove('qa-active');
   renderStreetList(); // show all streets again
+  updateStats(); // restore project-wide stats
 }
 
 // ─── FREE HIGHLIGHT (continuous multi-point drawing) ───────
