@@ -359,19 +359,74 @@ function getStreetViewUrl(lat, lng, heading = 0) {
 }
 
 // ─── AI ANALYSIS ───────────────────────────────────────────
+
+// Determine how many photos based on street length
+function getPhotoCount(lengthFt) {
+  if (lengthFt < 200) return 1;
+  if (lengthFt < 500) return 2;
+  if (lengthFt < 1500) return 3;
+  if (lengthFt < 3000) return 4;
+  return 5;
+}
+
+// Calculate evenly spaced GPS points between start and end
+function getSamplePoints(street) {
+  const path = street.path;
+  if (!path || path.length < 2) return [{ lat: street.lat, lng: street.lng }];
+
+  const startPt = path[0];
+  const endPt = path[path.length - 1];
+  const count = getPhotoCount(street.length || 0);
+
+  if (count === 1) return [startPt];
+  if (count === 2) return [startPt, endPt];
+
+  const points = [];
+  for (let i = 0; i < count; i++) {
+    const t = i / (count - 1); // 0 to 1
+    points.push({
+      lat: startPt.lat + (endPt.lat - startPt.lat) * t,
+      lng: startPt.lng + (endPt.lng - startPt.lng) * t
+    });
+  }
+  return points;
+}
+
 async function analyzeStreetView(street) {
   if (!AI_PROXY) {
     return analyzeWithPlaceholder(street);
   }
 
   try {
-    // Fetch Street View image and convert to base64
-    const svUrl = getStreetViewUrl(street.lat, street.lng);
-    const base64 = await imageUrlToBase64(svUrl);
-    if (!base64) {
-      console.warn('Could not load Street View image, using placeholder');
+    // Get sample points along the street
+    const samplePoints = getSamplePoints(street);
+    const photoCount = samplePoints.length;
+    const photoLabels = ['start', 'middle-start', 'middle', 'middle-end', 'end'];
+
+    // Fetch all Street View images as base64
+    const imagePromises = samplePoints.map(pt => {
+      const url = getStreetViewUrl(pt.lat, pt.lng);
+      return imageUrlToBase64(url);
+    });
+    const images = await Promise.all(imagePromises);
+    const validImages = images.filter(Boolean);
+
+    if (validImages.length === 0) {
+      console.warn('Could not load any Street View images, using placeholder');
       return analyzeWithPlaceholder(street);
     }
+
+    // Build message content with all images
+    const content = [
+      {
+        type: 'text',
+        text: `Assess the pavement condition of: ${street.name}\nStreet length: ${formatNumber(street.length || 0)} ft\nI'm sending ${validImages.length} photo(s) taken at evenly spaced points along this street (${validImages.length === 1 ? 'center' : 'start to end'}).`
+      },
+      ...validImages.map((b64, i) => ({
+        type: 'image_url',
+        image_url: { url: b64 }
+      }))
+    ];
 
     const res = await fetch(AI_PROXY, {
       method: 'POST',
@@ -381,27 +436,22 @@ async function analyzeStreetView(street) {
         messages: [
           {
             role: 'system',
-            content: `You are a pavement condition assessor for a road sealing company (GRSI). Analyze this Street View image and assess the visible pavement/road condition.
+            content: `You are a pavement condition assessor for a road sealing company (GRSI). You are receiving ${validImages.length} Street View image(s) taken at evenly spaced points along a single street.
 
-Look for: cracks (alligator, longitudinal, transverse), potholes, fading, patches, wear, surface texture, color of asphalt.
+Analyze ALL images together to assess the overall street condition. Look for: cracks (alligator, longitudinal, transverse), potholes, fading, patches, wear, surface texture, color of asphalt.
 
-Your response must include these sections:
-1. WHAT I CAN SEE: 2-3 bullet points of what's visible from this angle
-2. WHAT I CAN'T SEE: 1-2 bullet points about limitations (small cracks, hidden damage, etc.)
-3. RECOMMENDATION: Whether on-site inspection is needed and why
-4. Rating: [good/fair/poor/critical]
+Your response must include:
+1. PHOTOS ANALYZED: ${validImages.length} images covering ${formatNumber(street.length || 0)} ft
+2. WHAT I CAN SEE: 2-4 bullet points covering findings across all images. Note if condition varies along the street (e.g. "start section looks good but end section shows wear").
+3. WHAT I CAN'T SEE: 1-2 bullet points about limitations
+4. RECOMMENDATION: Whether on-site inspection is needed and why
+5. Rating: [good/fair/poor/critical]
 
-Be honest. If the image quality or angle makes it hard to assess, say so. Do not guess — only rate what you can actually see.`
+Be honest. If images show different conditions, weight toward the worst section. Do not guess — only rate what you can actually see.`
           },
-          {
-            role: 'user',
-            content: [
-              { type: 'text', text: `Assess the pavement condition visible in this Street View image of: ${street.name}` },
-              { type: 'image_url', image_url: { url: base64 } }
-            ]
-          }
+          { role: 'user', content: content }
         ],
-        max_tokens: 300
+        max_tokens: 500
       })
     });
 
@@ -409,6 +459,10 @@ Be honest. If the image quality or angle makes it hard to assess, say so. Do not
     const text = data.choices?.[0]?.message?.content || '';
     if (!text) return analyzeWithPlaceholder(street);
     const rating = extractRating(text);
+
+    // Store how many photos were used
+    street.photosScanned = validImages.length;
+
     return { text, rating };
   } catch (e) {
     console.error('AI analysis error:', e);
@@ -583,7 +637,7 @@ function selectStreet(id) {
     </div>
 
     <div class="detail-section">
-      <h4>AI Pavement Analysis</h4>
+      <h4>AI Pavement Analysis ${street.photosScanned ? `(${street.photosScanned} photo${street.photosScanned > 1 ? 's' : ''} scanned)` : ''}</h4>
       <div class="ai-analysis">${escHtml(street.analysis || 'No analysis available')}</div>
     </div>
 
