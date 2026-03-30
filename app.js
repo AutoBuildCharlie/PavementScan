@@ -909,8 +909,19 @@ function handleMapClick(latLng) {
       // Stay in drawing mode — ready for next street
       highlightMode = 'free-start';
       window._freeHighlightStart = null;
-      document.getElementById('highlight-bar-text').textContent = `Street ${window._drawCount} done (${formatNumber(street.length)} ft) — click START of next street, or Done`;
+      document.getElementById('highlight-bar-text').textContent = `Street ${window._drawCount} done (${formatNumber(street.length)} ft) — scanning... click START of next street, or Done`;
       showToast(`${formatNumber(street.length)} ft — ${formatNumber(street.sqft)} sq ft`);
+
+      // Auto-scan in background (doesn't block drawing)
+      analyzeStreetView(street).then(analysis => {
+        street.analysis = analysis.text;
+        street.rating = analysis.rating;
+        street.scannedAt = new Date().toISOString();
+        saveStreets();
+        drawAllHighlights();
+        renderStreetList();
+        updateStats();
+      });
     })();
     return;
   }
