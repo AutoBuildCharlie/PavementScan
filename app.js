@@ -86,9 +86,6 @@ function initMap() {
 
   // Backfill boundary points for existing streets
   migrateBoundaryPoints();
-
-  // Fix street names to show route name instead of intersection
-  migrateStreetNames();
 }
 
 // ─── STORAGE & PROJECTS ────────────────────────────────────
@@ -368,29 +365,25 @@ async function migrateBoundaryPoints() {
   drawAllHighlights();
 }
 
-// ─── MIGRATE STREET NAMES (one-time, runs on load) ─────────
-async function migrateStreetNames() {
-  const toFix = [];
-  projects.forEach(p => {
-    p.streets.forEach(s => {
-      // nameFixed v2 = uses 3-point sampling; re-run if not yet done
-      if (s.nameFixed !== 2 && s.lat && s.lng) toFix.push(s);
-    });
-  });
-  if (toFix.length === 0) return;
+// ─── NAME STREET PROMPT ─────────────────────────────────────
+function promptStreetName(street, suggestedName) {
+  document.getElementById('name-prompt-input').value = suggestedName || '';
+  document.getElementById('name-prompt-overlay').classList.remove('hidden');
+  document.getElementById('name-prompt-input').focus();
+  window._namingStreetId = street.id;
+}
 
-  for (const s of toFix) {
-    const path = s.path && s.path.length >= 2 ? s.path : null;
-    const midPt = path ? getPathPointAt(path, 0.5) : { lat: s.lat, lng: s.lng };
-    const info = await detectRoadType(midPt.lat, midPt.lng);
-    if (info.name) s.name = info.name;
-    s.nameFixed = 2;
-    await new Promise(r => setTimeout(r, 1100)); // Nominatim rate limit
+function confirmStreetName() {
+  const val = document.getElementById('name-prompt-input').value.trim();
+  if (!val) return;
+  const street = streets.find(s => s.id === window._namingStreetId);
+  if (street) {
+    street.name = val;
+    saveStreets();
+    renderStreetList();
+    selectStreet(street.id);
   }
-
-  saveProjects();
-  renderStreetList();
-  if (activeStreetId) selectStreet(activeStreetId);
+  document.getElementById('name-prompt-overlay').classList.add('hidden');
 }
 
 // ─── MIGRATE SCAN PHOTOS (one-time, runs on load) ──────────
@@ -996,7 +989,7 @@ function selectStreet(id) {
 
   document.getElementById('detail-content').innerHTML = `
     <div class="detail-header">
-      <h3>${escHtml(street.name)}</h3>
+      <h3>${escHtml(street.name)} <button class="btn-edit-analysis" onclick="promptStreetName(streets.find(s=>s.id==='${street.id}'), '${escHtml(street.name)}')" style="font-size:11px;padding:2px 8px">Rename</button></h3>
       ${street.city ? `<div class="detail-jurisdiction">${escHtml(street.city)}${street.county ? ' — ' + escHtml(street.county) : ''}${street.state ? ', ' + escHtml(street.state) : ''}</div>` : ''}
       ${street.crossesBoundary ? `<div class="detail-boundary-warn">⚠ ${escHtml(street.boundaryNote)}</div>` : ''}
       ${street.weedAlert ? `<div class="detail-weed-warn">🌿 Weed/grass control may be needed on this street</div>` : ''}
@@ -1973,6 +1966,9 @@ async function saveHighlightedStreet(startPt, endPt) {
   drawCount++;
   document.getElementById('highlight-bar-text').textContent = `Street ${drawCount} saved (${formatNumber(roadLengthFt)} ft) — click next street or Done`;
   showToast(`${formatNumber(roadLengthFt)} ft — ${formatNumber(street.sqft)} sq ft`);
+
+  // Prompt user to confirm/set street name
+  promptStreetName(street, roadInfo.name || '');
 
   if (street.crossesBoundary) {
     setTimeout(() => showToast(`⚠ ${street.boundaryNote}`, 5000), 1500);
