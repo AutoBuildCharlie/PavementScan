@@ -83,6 +83,9 @@ function initMap() {
 
   // Auto-generate scan photo galleries for existing streets
   migrateScanPhotos();
+
+  // Backfill boundary points for existing streets
+  migrateBoundaryPoints();
 }
 
 // ─── STORAGE & PROJECTS ────────────────────────────────────
@@ -290,6 +293,23 @@ async function migrateRoadTypes() {
   updateStats();
   if (activeStreetId) selectStreet(activeStreetId);
   showToast(`${toFix.length} street${toFix.length > 1 ? 's' : ''} updated with road types`);
+}
+
+// ─── MIGRATE BOUNDARY POINTS (one-time, runs on load) ──────
+function migrateBoundaryPoints() {
+  let changed = false;
+  projects.forEach(p => {
+    p.streets.forEach(s => {
+      if (s.crossesBoundary && !s.boundaryPoint && s.path && s.path.length >= 2) {
+        s.boundaryPoint = s.path[Math.floor(s.path.length / 2)];
+        changed = true;
+      }
+    });
+  });
+  if (changed) {
+    saveProjects();
+    drawAllHighlights();
+  }
 }
 
 // ─── MIGRATE SCAN PHOTOS (one-time, runs on load) ──────────
@@ -1842,6 +1862,11 @@ async function saveHighlightedStreet(startPt, endPt) {
     street.boundaryNote = `Crosses county line: ${startGeo.county} → ${endGeo.county}`;
   }
 
+  // Store approximate boundary crossing point (midpoint of path)
+  if (street.crossesBoundary && roadPath.length >= 2) {
+    street.boundaryPoint = roadPath[Math.floor(roadPath.length / 2)];
+  }
+
   streets.push(street);
   saveStreets();
 
@@ -1963,6 +1988,26 @@ function drawAllHighlights() {
     });
     line.addListener('click', () => selectStreet(street.id));
     polylines.push(line);
+
+    // Boundary crossing marker
+    if (street.crossesBoundary && street.boundaryPoint) {
+      const bMarker = new google.maps.Marker({
+        position: street.boundaryPoint,
+        map: map,
+        title: street.boundaryNote,
+        icon: {
+          path: 'M 0,-10 10,0 0,10 -10,0 Z', // diamond shape
+          fillColor: '#f97316',
+          fillOpacity: 1,
+          strokeColor: '#fff',
+          strokeWeight: 2,
+          scale: 1
+        },
+        zIndex: 10
+      });
+      bMarker.addListener('click', () => selectStreet(street.id));
+      polylines.push(bMarker);
+    }
   });
 }
 
