@@ -20,7 +20,7 @@
    Street object shape:
    {
      id, name, lat, lng, length, width, sqft,
-     rating, notes, analysis, svImage,
+     rating, notes, analysis, adminNotes, weedAlert, svImage,
      path: [{ lat, lng }, ...],
      photos: [{ id, dataUrl, lat, lng, address, note, takenAt }],
      scannedAt, createdAt
@@ -739,15 +739,32 @@ function selectStreet(id) {
     </div>
 
     <div class="detail-section">
-      <h4>AI Pavement Analysis ${street.photosScanned ? `(${street.photosScanned} photo${street.photosScanned > 1 ? 's' : ''} scanned)` : ''}</h4>
-      <div class="ai-analysis">${escHtml(street.analysis || 'No analysis available')}</div>
+      <h4>AI Pavement Analysis ${street.photosScanned ? `(${street.photosScanned} photo${street.photosScanned > 1 ? 's' : ''} scanned)` : ''}
+        <button class="btn-edit-analysis" onclick="toggleEditAnalysis('${street.id}')" id="edit-analysis-btn">Edit</button>
+      </h4>
+      <div class="ai-analysis" id="analysis-display">${escHtml(street.analysis || 'No analysis available')}</div>
+      <div class="analysis-edit-area hidden" id="analysis-edit">
+        <textarea id="analysis-textarea" class="analysis-textarea">${escHtml(street.analysis || '')}</textarea>
+        <div class="analysis-edit-actions">
+          <button class="btn-save-analysis" onclick="saveAnalysis('${street.id}')">Save</button>
+          <button class="btn-secondary btn-cancel-analysis" onclick="cancelEditAnalysis()">Cancel</button>
+        </div>
+      </div>
     </div>
 
-    ${street.notes ? `
     <div class="detail-section">
-      <h4>Notes</h4>
-      <div class="ai-analysis">${escHtml(street.notes)}</div>
-    </div>` : ''}
+      <h4>Admin Notes
+        <button class="btn-edit-analysis" onclick="toggleEditNotes('${street.id}')" id="edit-notes-btn">${street.adminNotes ? 'Edit' : 'Add'}</button>
+      </h4>
+      ${street.adminNotes ? `<div class="admin-notes" id="notes-display">${escHtml(street.adminNotes)}</div>` : `<p class="text-dim" id="notes-display">No admin notes yet</p>`}
+      <div class="analysis-edit-area hidden" id="notes-edit">
+        <textarea id="notes-textarea" class="analysis-textarea" placeholder="Add your own notes about this street...">${escHtml(street.adminNotes || '')}</textarea>
+        <div class="analysis-edit-actions">
+          <button class="btn-save-analysis" onclick="saveAdminNotes('${street.id}')">Save</button>
+          <button class="btn-secondary btn-cancel-analysis" onclick="cancelEditNotes()">Cancel</button>
+        </div>
+      </div>
+    </div>
 
     <div class="detail-section">
       <h4>On-Site Photos (${(street.photos || []).length})</h4>
@@ -837,6 +854,72 @@ function closeDetailPanel() {
   document.getElementById('detail-panel').classList.add('hidden');
   activeStreetId = null;
   renderStreetList();
+}
+
+// ─── EDIT ANALYSIS & ADMIN NOTES ──────────────────────────
+function toggleEditAnalysis(id) {
+  const display = document.getElementById('analysis-display');
+  const edit = document.getElementById('analysis-edit');
+  const btn = document.getElementById('edit-analysis-btn');
+  if (edit.classList.contains('hidden')) {
+    edit.classList.remove('hidden');
+    display.classList.add('hidden');
+    btn.textContent = 'Cancel';
+    document.getElementById('analysis-textarea').focus();
+  } else {
+    cancelEditAnalysis();
+  }
+}
+
+function cancelEditAnalysis() {
+  document.getElementById('analysis-edit').classList.add('hidden');
+  document.getElementById('analysis-display').classList.remove('hidden');
+  document.getElementById('edit-analysis-btn').textContent = 'Edit';
+}
+
+function saveAnalysis(id) {
+  const street = streets.find(s => s.id === id);
+  if (!street) return;
+  const text = document.getElementById('analysis-textarea').value.trim();
+  street.analysis = text;
+  street.rating = extractRating(text);
+  street.weedAlert = extractWeedAlert(text);
+  saveStreets();
+  renderStreetList();
+  updateStats();
+  placeAllMarkers();
+  selectStreet(id);
+  showToast('Analysis updated');
+}
+
+function toggleEditNotes(id) {
+  const display = document.getElementById('notes-display');
+  const edit = document.getElementById('notes-edit');
+  const btn = document.getElementById('edit-notes-btn');
+  if (edit.classList.contains('hidden')) {
+    edit.classList.remove('hidden');
+    display.classList.add('hidden');
+    btn.textContent = 'Cancel';
+    document.getElementById('notes-textarea').focus();
+  } else {
+    cancelEditNotes();
+  }
+}
+
+function cancelEditNotes() {
+  document.getElementById('notes-edit').classList.add('hidden');
+  document.getElementById('notes-display').classList.remove('hidden');
+  const street = streets.find(s => s.id === activeStreetId);
+  document.getElementById('edit-notes-btn').textContent = street?.adminNotes ? 'Edit' : 'Add';
+}
+
+function saveAdminNotes(id) {
+  const street = streets.find(s => s.id === id);
+  if (!street) return;
+  street.adminNotes = document.getElementById('notes-textarea').value.trim();
+  saveStreets();
+  selectStreet(id);
+  showToast('Notes saved');
 }
 
 // ─── RESCAN STREET ─────────────────────────────────────────
@@ -1574,7 +1657,7 @@ async function generateProjectReport() {
 
   // Build street summary for AI
   const streetSummary = streets.map(s =>
-    `- ${s.name}: ${formatNumber(s.length || 0)} ft, ${formatNumber(s.sqft || 0)} sq ft, Rating: ${s.rating}, City: ${s.city || 'Unknown'}${s.weedAlert ? ', ⚠ WEED CONTROL NEEDED' : ''}`
+    `- ${s.name}: ${formatNumber(s.length || 0)} ft, ${formatNumber(s.sqft || 0)} sq ft, Rating: ${s.rating}, City: ${s.city || 'Unknown'}${s.weedAlert ? ', ⚠ WEED CONTROL NEEDED' : ''}${s.adminNotes ? ', Admin notes: ' + s.adminNotes : ''}`
   ).join('\n');
 
   // Get AI project summary
@@ -1662,6 +1745,7 @@ async function generateProjectReport() {
           <span>${formatNumber(s.sqft || 0)} sq ft</span>
           <span class="rating-badge rating-${s.rating}" title="${ratingDescription(s.rating)}">${ratingLabel(s.rating)}</span>
         </div>
+        ${s.adminNotes ? `<div class="report-admin-note">📝 ${escHtml(s.adminNotes)}</div>` : ''}
       `).join('')}
     </div>
 
