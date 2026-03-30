@@ -740,6 +740,7 @@ body {
   overflow: hidden;
   cursor: pointer;
   transition: opacity 0.15s;
+  height: 80px;
 }
 .scan-photo-card:hover { opacity: 0.85; }
 /* ─── LIGHTBOX ─────────────────────────────────────────────── */
@@ -804,7 +805,7 @@ body {
 }
 .scan-photo-img {
   width: 100%;
-  height: 90px;
+  height: 80px;
   object-fit: cover;
   display: block;
 }
