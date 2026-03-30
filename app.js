@@ -360,36 +360,60 @@ function getStreetViewUrl(lat, lng, heading = 0) {
 
 // ─── AI ANALYSIS ───────────────────────────────────────────
 
-// Determine how many photos based on street length
-function getPhotoCount(lengthFt) {
-  if (lengthFt < 200) return 1;
-  if (lengthFt < 500) return 2;
-  if (lengthFt < 1500) return 3;
-  if (lengthFt < 3000) return 4;
-  return 5;
+// Determine how many mid-street photos based on length
+function getMidPhotoCount(lengthFt) {
+  if (lengthFt < 200) return 0;   // cul-de-sacs — corners only
+  if (lengthFt < 500) return 1;   // small streets — 1 mid
+  if (lengthFt < 1500) return 2;  // standard — 2 mid
+  if (lengthFt < 3000) return 3;  // long — 3 mid
+  return 4;                        // major — 4 mid
 }
 
-// Calculate evenly spaced GPS points between start and end
+// Calculate sample points + corner coverage
+// Always takes photos at start and end looking in multiple directions
 function getSamplePoints(street) {
   const path = street.path;
-  if (!path || path.length < 2) return [{ lat: street.lat, lng: street.lng }];
+  if (!path || path.length < 2) return [{ lat: street.lat, lng: street.lng, heading: 0 }];
 
   const startPt = path[0];
   const endPt = path[path.length - 1];
-  const count = getPhotoCount(street.length || 0);
 
-  if (count === 1) return [startPt];
-  if (count === 2) return [startPt, endPt];
+  // Calculate heading from start to end
+  const heading = calcHeading(startPt, endPt);
 
   const points = [];
-  for (let i = 0; i < count; i++) {
-    const t = i / (count - 1); // 0 to 1
+
+  // START CORNER — 2 photos looking in different directions
+  points.push({ ...startPt, heading: heading, label: 'Start (looking down street)' });
+  points.push({ ...startPt, heading: (heading + 90) % 360, label: 'Start corner (cross street)' });
+
+  // MID-STREET — evenly spaced looking down the street
+  const midCount = getMidPhotoCount(street.length || 0);
+  for (let i = 1; i <= midCount; i++) {
+    const t = i / (midCount + 1);
     points.push({
       lat: startPt.lat + (endPt.lat - startPt.lat) * t,
-      lng: startPt.lng + (endPt.lng - startPt.lng) * t
+      lng: startPt.lng + (endPt.lng - startPt.lng) * t,
+      heading: heading,
+      label: `Mid-point ${i}`
     });
   }
+
+  // END CORNER — 2 photos looking in different directions
+  points.push({ ...endPt, heading: (heading + 180) % 360, label: 'End (looking back)' });
+  points.push({ ...endPt, heading: (heading + 270) % 360, label: 'End corner (cross street)' });
+
   return points;
+}
+
+// Calculate compass heading from point A to point B
+function calcHeading(from, to) {
+  const dLng = (to.lng - from.lng) * Math.PI / 180;
+  const fromLat = from.lat * Math.PI / 180;
+  const toLat = to.lat * Math.PI / 180;
+  const x = Math.sin(dLng) * Math.cos(toLat);
+  const y = Math.cos(fromLat) * Math.sin(toLat) - Math.sin(fromLat) * Math.cos(toLat) * Math.cos(dLng);
+  return ((Math.atan2(x, y) * 180 / Math.PI) + 360) % 360;
 }
 
 async function analyzeStreetView(street) {
@@ -405,26 +429,32 @@ async function analyzeStreetView(street) {
 
     // Fetch all Street View images as base64
     const imagePromises = samplePoints.map(pt => {
-      const url = getStreetViewUrl(pt.lat, pt.lng);
+      const url = getStreetViewUrl(pt.lat, pt.lng, pt.heading || 0);
       return imageUrlToBase64(url);
     });
     const images = await Promise.all(imagePromises);
-    const validImages = images.filter(Boolean);
 
-    if (validImages.length === 0) {
+    // Pair valid images with their labels
+    const validPairs = [];
+    images.forEach((img, i) => {
+      if (img) validPairs.push({ base64: img, label: samplePoints[i].label || `Photo ${i + 1}` });
+    });
+
+    if (validPairs.length === 0) {
       console.warn('Could not load any Street View images, using placeholder');
       return analyzeWithPlaceholder(street);
     }
 
-    // Build message content with all images
+    // Build message content with labeled images
+    const photoDescriptions = validPairs.map(p => p.label).join(', ');
     const content = [
       {
         type: 'text',
-        text: `Assess the pavement condition of: ${street.name}\nStreet length: ${formatNumber(street.length || 0)} ft\nI'm sending ${validImages.length} photo(s) taken at evenly spaced points along this street (${validImages.length === 1 ? 'center' : 'start to end'}).`
+        text: `Assess the pavement condition of: ${street.name}\nStreet length: ${formatNumber(street.length || 0)} ft\nI'm sending ${validPairs.length} photo(s): ${photoDescriptions}.\nCorner photos show intersections and cross streets where cracking is usually worst.`
       },
-      ...validImages.map((b64, i) => ({
+      ...validPairs.map(p => ({
         type: 'image_url',
-        image_url: { url: b64 }
+        image_url: { url: p.base64 }
       }))
     ];
 
@@ -436,18 +466,21 @@ async function analyzeStreetView(street) {
         messages: [
           {
             role: 'system',
-            content: `You are a pavement condition assessor for a road sealing company (GRSI). You are receiving ${validImages.length} Street View image(s) taken at evenly spaced points along a single street.
+            content: `You are a pavement condition assessor for a road sealing company (GRSI). You are receiving ${validPairs.length} Street View image(s) of a single street.
 
-Analyze ALL images together to assess the overall street condition. Look for: cracks (alligator, longitudinal, transverse), potholes, fading, patches, wear, surface texture, color of asphalt.
+Photos include corner/intersection views and mid-street views. Corners and cul-de-sacs typically show the worst cracking due to turning traffic — pay extra attention to these.
+
+Analyze ALL images together. Look for: cracks (alligator, longitudinal, transverse), potholes, fading, patches, wear, surface texture, color of asphalt, corner damage.
 
 Your response must include:
-1. PHOTOS ANALYZED: ${validImages.length} images covering ${formatNumber(street.length || 0)} ft
-2. WHAT I CAN SEE: 2-4 bullet points covering findings across all images. Note if condition varies along the street (e.g. "start section looks good but end section shows wear").
-3. WHAT I CAN'T SEE: 1-2 bullet points about limitations
-4. RECOMMENDATION: Whether on-site inspection is needed and why
-5. Rating: [good/fair/poor/critical]
+1. PHOTOS ANALYZED: ${validPairs.length} images covering ${formatNumber(street.length || 0)} ft
+2. WHAT I CAN SEE: 2-4 bullet points. Note corner vs mid-street differences. Note if condition varies along the street.
+3. CORNERS: Specifically note condition at intersections/corners if visible.
+4. WHAT I CAN'T SEE: 1-2 bullet points about limitations
+5. RECOMMENDATION: Whether on-site inspection is needed and why
+6. Rating: [good/fair/poor/critical]
 
-Be honest. If images show different conditions, weight toward the worst section. Do not guess — only rate what you can actually see.`
+Be honest. Weight toward the worst section. Do not guess — only rate what you can actually see.`
           },
           { role: 'user', content: content }
         ],
@@ -461,7 +494,7 @@ Be honest. If images show different conditions, weight toward the worst section.
     const rating = extractRating(text);
 
     // Store how many photos were used
-    street.photosScanned = validImages.length;
+    street.photosScanned = validPairs.length;
 
     return { text, rating };
   } catch (e) {
