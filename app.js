@@ -275,11 +275,11 @@ function placeAllMarkers() {
       title: street.name,
       icon: {
         path: google.maps.SymbolPath.CIRCLE,
-        scale: 10,
+        scale: 14,
         fillColor: color,
         fillOpacity: 0.9,
         strokeColor: '#fff',
-        strokeWeight: 2
+        strokeWeight: 2.5
       }
     });
 
@@ -505,8 +505,9 @@ function darkMapStyle() {
     { elementType: 'labels.text.stroke', stylers: [{ color: '#1a1a2e' }] },
     { elementType: 'labels.text.fill', stylers: [{ color: '#8892b0' }] },
     { featureType: 'administrative', elementType: 'geometry', stylers: [{ color: '#2d2d44' }] },
-    { featureType: 'poi', elementType: 'geometry', stylers: [{ color: '#1f1f35' }] },
-    { featureType: 'poi', elementType: 'labels.text.fill', stylers: [{ color: '#6b7280' }] },
+    { featureType: 'poi', stylers: [{ visibility: 'off' }] },
+    { featureType: 'poi.lodging', stylers: [{ visibility: 'on' }] },
+    { featureType: 'poi.lodging', elementType: 'geometry', stylers: [{ color: '#1f1f35' }] },
     { featureType: 'road', elementType: 'geometry', stylers: [{ color: '#2d2d44' }] },
     { featureType: 'road', elementType: 'geometry.stroke', stylers: [{ color: '#1a1a2e' }] },
     { featureType: 'road.highway', elementType: 'geometry', stylers: [{ color: '#3b3b5c' }] },
