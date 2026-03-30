@@ -967,20 +967,27 @@ function selectStreet(id) {
         miniMapLines.push(line);
       });
 
-      // Track position changes — auto-switch to nearest street
+      // Track position changes
+      let svGeoTimer = null;
+      let svSwitchCandidate = null;
+      let svSwitchCount = 0;
+
       if (streetViewPano) {
         streetViewPano.addListener('position_changed', () => {
           const pos = streetViewPano.getPosition();
           if (miniMapMarker) { miniMapMarker.setPosition(pos); miniMap.setCenter(pos); }
 
-          // Update address label
-          const geocoder = new google.maps.Geocoder();
-          geocoder.geocode({ location: { lat: pos.lat(), lng: pos.lng() } }, (results, status) => {
-            const el = document.getElementById('mini-map-address');
-            if (el && status === 'OK' && results.length > 0) el.textContent = results[0].formatted_address;
-          });
+          // Debounced address update (once per 2 sec, not every step)
+          clearTimeout(svGeoTimer);
+          svGeoTimer = setTimeout(() => {
+            const geocoder = new google.maps.Geocoder();
+            geocoder.geocode({ location: { lat: pos.lat(), lng: pos.lng() } }, (results, status) => {
+              const el = document.getElementById('mini-map-address');
+              if (el && status === 'OK' && results.length > 0) el.textContent = results[0].formatted_address;
+            });
+          }, 2000);
 
-          // Find nearest project street and auto-switch if close enough
+          // Auto-switch: only if you're very close AND stay near it for 3+ steps
           if (streets.length > 1) {
             const pLat = pos.lat(), pLng = pos.lng();
             let nearest = null, minDist = Infinity;
@@ -988,9 +995,21 @@ function selectStreet(id) {
               const d = Math.sqrt(Math.pow(s.lat - pLat, 2) + Math.pow(s.lng - pLng, 2));
               if (d < minDist) { minDist = d; nearest = s; }
             });
-            // ~0.002 degrees ≈ 700 ft — close enough to auto-switch
-            if (nearest && nearest.id !== activeStreetId && minDist < 0.002) {
-              selectStreet(nearest.id);
+            // ~0.0005 degrees ≈ 180 ft — must be very close
+            if (nearest && nearest.id !== activeStreetId && minDist < 0.0005) {
+              if (svSwitchCandidate === nearest.id) {
+                svSwitchCount++;
+                if (svSwitchCount >= 3) {
+                  selectStreet(nearest.id);
+                  svSwitchCount = 0;
+                }
+              } else {
+                svSwitchCandidate = nearest.id;
+                svSwitchCount = 1;
+              }
+            } else {
+              svSwitchCandidate = null;
+              svSwitchCount = 0;
             }
           }
         });
