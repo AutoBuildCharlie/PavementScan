@@ -506,7 +506,7 @@ function getStreetViewUrl(lat, lng, heading = 0) {
 }
 
 function getStreetViewUrlHD(lat, lng, heading = 0) {
-  return `${SV_BASE}?size=640x640&location=${lat},${lng}&heading=${heading}&pitch=-10&fov=80&key=${API_KEY}`;
+  return `${SV_BASE}?size=640x640&location=${lat},${lng}&heading=${heading}&pitch=-25&fov=80&key=${API_KEY}`;
 }
 
 // ─── AI ANALYSIS ───────────────────────────────────────────
