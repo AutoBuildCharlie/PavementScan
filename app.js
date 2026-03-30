@@ -511,9 +511,21 @@ function getStreetViewUrlHD(lat, lng, heading = 0) {
 
 // ─── AI ANALYSIS ───────────────────────────────────────────
 
-// 1 mid photo per ~200ft (≈ every 4 homes), max 5
-function getMidPhotoCount(lengthFt) {
-  return Math.min(5, Math.floor(lengthFt / 200));
+// Offset a lat/lng point in a given heading direction by distanceFt
+function offsetPoint(lat, lng, headingDeg, distanceFt) {
+  const headingRad = headingDeg * Math.PI / 180;
+  const latPerFt = 1 / 364000;
+  const lngPerFt = 1 / (364000 * Math.cos(lat * Math.PI / 180));
+  return {
+    lat: lat + distanceFt * Math.cos(headingRad) * latPerFt,
+    lng: lng + distanceFt * Math.sin(headingRad) * lngPerFt
+  };
+}
+
+// True if street is a main road (arterial, highway, collector)
+function isMainStreet(street) {
+  const label = (street.roadType || '').toLowerCase();
+  return label.includes('arterial') || label.includes('highway') || label.includes('collector');
 }
 
 // Calculate sample points — always looking INTO the street from each endpoint
@@ -522,30 +534,58 @@ function getSamplePoints(street) {
   if (!path || path.length < 2) return [{ lat: street.lat, lng: street.lng, heading: 0, label: 'Start' }];
 
   const startPt = path[0];
-  const endPt = path[path.length - 1];
-  const headingForward  = calcHeading(startPt, endPt);  // start → end
-  const headingBackward = (headingForward + 180) % 360; // end → start
+  const endPt   = path[path.length - 1];
+  const headingForward  = calcHeading(startPt, endPt);
+  const headingBackward = (headingForward + 180) % 360;
+  const perpRight       = (headingForward + 90) % 360;  // right side of road
+  const perpLeft        = (headingForward + 270) % 360; // left side of road
   const length = street.length || 0;
+  const halfWidth = ((street.width || 32) / 2) * 0.55;  // 55% of half-width stays in lane
 
   const points = [];
 
-  // START — looking down the street toward the end
-  points.push({ ...startPt, heading: headingForward, label: 'Start (looking in)' });
+  if (isMainStreet(street)) {
+    // ── MAIN STREET — multi-lane coverage ──────────────────
+    // START: right curb + center (both looking forward)
+    const startCurb = offsetPoint(startPt.lat, startPt.lng, perpRight, halfWidth);
+    points.push({ ...startCurb, heading: headingForward, label: 'Start — right lanes' });
+    points.push({ ...startPt,   heading: headingForward, label: 'Start — center' });
 
-  // MID-STREET — evenly spaced, looking in the forward direction
-  const midCount = getMidPhotoCount(length);
-  for (let i = 1; i <= midCount; i++) {
-    const t = i / (midCount + 1);
-    points.push({
-      lat: startPt.lat + (endPt.lat - startPt.lat) * t,
-      lng: startPt.lng + (endPt.lng - startPt.lng) * t,
-      heading: headingForward,
-      label: `Mid-point ${i}`
-    });
+    // MID-POINTS every 400ft: right curb + center + left curb
+    const midCount = Math.min(6, Math.floor(length / 400));
+    for (let i = 1; i <= midCount; i++) {
+      const t = i / (midCount + 1);
+      const midLat = startPt.lat + (endPt.lat - startPt.lat) * t;
+      const midLng = startPt.lng + (endPt.lng - startPt.lng) * t;
+      const midRight = offsetPoint(midLat, midLng, perpRight, halfWidth);
+      const midLeft  = offsetPoint(midLat, midLng, perpLeft,  halfWidth);
+      points.push({ ...midRight,             heading: headingForward, label: `Mid-point ${i} — right lanes` });
+      points.push({ lat: midLat, lng: midLng, heading: headingForward, label: `Mid-point ${i} — center` });
+      points.push({ ...midLeft,              heading: headingForward, label: `Mid-point ${i} — left lanes` });
+    }
+
+    // END: center + right curb (both looking backward)
+    const endCurb = offsetPoint(endPt.lat, endPt.lng, perpRight, halfWidth);
+    points.push({ ...endPt,   heading: headingBackward, label: 'End — center' });
+    points.push({ ...endCurb, heading: headingBackward, label: 'End — right lanes' });
+
+  } else {
+    // ── RESIDENTIAL — 1 photo per 200ft, start + end only ──
+    points.push({ ...startPt, heading: headingForward, label: 'Start (looking in)' });
+
+    const midCount = Math.min(5, Math.floor(length / 200));
+    for (let i = 1; i <= midCount; i++) {
+      const t = i / (midCount + 1);
+      points.push({
+        lat: startPt.lat + (endPt.lat - startPt.lat) * t,
+        lng: startPt.lng + (endPt.lng - startPt.lng) * t,
+        heading: headingForward,
+        label: `Mid-point ${i}`
+      });
+    }
+
+    points.push({ ...endPt, heading: headingBackward, label: 'End (looking in)' });
   }
-
-  // END — looking back into the street toward the start
-  points.push({ ...endPt, heading: headingBackward, label: 'End (looking in)' });
 
   return points;
 }
