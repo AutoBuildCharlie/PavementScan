@@ -937,7 +937,8 @@ function selectStreet(id) {
 
     <div class="detail-actions">
       ${(street.path || street.highlightStart) ?
-        `<button class="btn-secondary" onclick="removeHighlight('${street.id}')">Clear Line</button>` :
+        `<button class="btn-secondary" onclick="removeHighlight('${street.id}')">Clear Line</button>
+         <button class="btn-secondary" onclick="snapToRoad('${street.id}')">Snap to Road</button>` :
         `<button class="btn-highlight" onclick="startFreeHighlight()">Highlight Street</button>`
       }
       ${activeProject.aiEnabled !== false ? `<button class="btn-rescan" onclick="rescanStreet('${street.id}')">Re-scan</button>` : ''}
@@ -1676,26 +1677,59 @@ function handleMapClick(latLng) {
 }
 
 async function saveHighlightedStreet(startPt, endPt) {
-  const distFt = Math.round(calcDistanceFt(startPt, endPt));
+  // Get actual road path from Directions API
+  let roadPath = [startPt, endPt];
+  let roadLengthFt = Math.round(calcDistanceFt(startPt, endPt));
 
-  const [startGeo, endGeo] = await Promise.all([
+  try {
+    const directions = new google.maps.DirectionsService();
+    const result = await new Promise((resolve, reject) => {
+      directions.route({
+        origin: new google.maps.LatLng(startPt.lat, startPt.lng),
+        destination: new google.maps.LatLng(endPt.lat, endPt.lng),
+        travelMode: google.maps.TravelMode.DRIVING
+      }, (res, status) => {
+        if (status === 'OK') resolve(res);
+        else reject(status);
+      });
+    });
+
+    // Extract the road geometry points
+    const leg = result.routes[0].legs[0];
+    roadLengthFt = Math.round(leg.distance.value * 3.28084); // meters to feet
+    roadPath = [];
+    leg.steps.forEach(step => {
+      step.path.forEach(p => roadPath.push({ lat: p.lat(), lng: p.lng() }));
+    });
+  } catch (e) {
+    console.warn('Directions API fallback to straight line:', e);
+  }
+
+  const midIdx = Math.floor(roadPath.length / 2);
+  const midPt = roadPath[midIdx] || startPt;
+
+  const [startGeo, endGeo, roadInfo] = await Promise.all([
     geocodeDetails(startPt),
-    geocodeDetails(endPt)
+    geocodeDetails(endPt),
+    detectRoadType(midPt.lat, midPt.lng)
   ]);
+
+  const width = roadInfo.width;
 
   const street = {
     id: crypto.randomUUID?.() || Date.now().toString(36),
     name: startGeo.address || 'Unknown location',
     lat: startPt.lat,
     lng: startPt.lng,
-    length: distFt,
-    width: 24,
-    sqft: distFt * 24,
+    length: roadLengthFt,
+    width: width,
+    sqft: roadLengthFt * width,
+    roadType: roadInfo.label,
     rating: 'pending',
     notes: '',
     analysis: '',
     svImage: getStreetViewUrl(startPt.lat, startPt.lng),
-    path: [startPt, endPt],
+    path: roadPath,
     city: startGeo.city,
     county: startGeo.county,
     state: startGeo.state,
@@ -1727,8 +1761,8 @@ async function saveHighlightedStreet(startPt, endPt) {
   updateStats();
 
   drawCount++;
-  document.getElementById('highlight-bar-text').textContent = `Street ${drawCount} saved (${formatNumber(distFt)} ft) — click next street or Done`;
-  showToast(`${formatNumber(distFt)} ft — ${formatNumber(street.sqft)} sq ft`);
+  document.getElementById('highlight-bar-text').textContent = `Street ${drawCount} saved (${formatNumber(roadLengthFt)} ft) — click next street or Done`;
+  showToast(`${formatNumber(roadLengthFt)} ft — ${formatNumber(street.sqft)} sq ft`);
 
   if (street.crossesBoundary) {
     setTimeout(() => showToast(`⚠ ${street.boundaryNote}`, 5000), 1500);
@@ -1836,6 +1870,52 @@ function drawAllHighlights() {
     line.addListener('click', () => selectStreet(street.id));
     polylines.push(line);
   });
+}
+
+async function snapToRoad(id) {
+  const street = streets.find(s => s.id === id);
+  if (!street) return;
+
+  const path = street.path;
+  if (!path || path.length < 2) { showToast('No highlight to snap'); return; }
+
+  const startPt = path[0];
+  const endPt = path[path.length - 1];
+
+  showToast('Snapping to road...');
+
+  try {
+    const directions = new google.maps.DirectionsService();
+    const result = await new Promise((resolve, reject) => {
+      directions.route({
+        origin: new google.maps.LatLng(startPt.lat, startPt.lng),
+        destination: new google.maps.LatLng(endPt.lat, endPt.lng),
+        travelMode: google.maps.TravelMode.DRIVING
+      }, (res, status) => {
+        if (status === 'OK') resolve(res);
+        else reject(status);
+      });
+    });
+
+    const leg = result.routes[0].legs[0];
+    const roadPath = [];
+    leg.steps.forEach(step => {
+      step.path.forEach(p => roadPath.push({ lat: p.lat(), lng: p.lng() }));
+    });
+
+    street.path = roadPath;
+    street.length = Math.round(leg.distance.value * 3.28084);
+    street.sqft = street.length * (street.width || 32);
+    saveStreets();
+    drawAllHighlights();
+    placeAllMarkers();
+    updateStats();
+    selectStreet(id);
+    showToast('Snapped to road');
+  } catch (e) {
+    console.error('Snap to road error:', e);
+    showToast('Could not snap — road not found between endpoints');
+  }
 }
 
 function removeHighlight(id) {
