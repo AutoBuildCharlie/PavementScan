@@ -722,18 +722,27 @@ function placeAllMarkers() {
   markers = [];
 
   streets.forEach(street => {
-    const color = ratingColor(street.rating);
+    // Only show marker if street has no highlight line (line is the visual)
+    const hasLine = street.path && street.path.length >= 2;
     const marker = new google.maps.Marker({
       position: { lat: street.lat, lng: street.lng },
       map: map,
       title: street.name,
-      icon: {
+      icon: hasLine ? {
+        // Invisible clickable area for highlighted streets
         path: google.maps.SymbolPath.CIRCLE,
-        scale: 14,
-        fillColor: color,
+        scale: 6,
+        fillColor: ratingColor(street.rating),
+        fillOpacity: 0,
+        strokeWeight: 0
+      } : {
+        // Visible dot for streets without highlights
+        path: google.maps.SymbolPath.CIRCLE,
+        scale: 8,
+        fillColor: ratingColor(street.rating),
         fillOpacity: 0.9,
         strokeColor: '#fff',
-        strokeWeight: 2.5
+        strokeWeight: 2
       }
     });
 
@@ -1763,32 +1772,61 @@ function drawAllHighlights() {
   polylines.forEach(p => p.setMap(null));
   polylines = [];
 
+  // Collect all endpoints for snapping
+  const SNAP_THRESHOLD = 0.00015; // ~50 ft
+  const allPaths = [];
+
   streets.forEach(street => {
-    // Support old format (highlightStart/End) and new format (path)
     let pathPoints = street.path;
     if (!pathPoints && street.highlightStart && street.highlightEnd) {
       pathPoints = [street.highlightStart, street.highlightEnd];
     }
     if (!pathPoints || pathPoints.length < 2) return;
+    // Deep copy so we don't mutate stored data
+    allPaths.push({ street, points: pathPoints.map(p => ({ lat: p.lat, lng: p.lng })) });
+  });
 
+  // Snap nearby endpoints together so lines connect cleanly
+  for (let i = 0; i < allPaths.length; i++) {
+    for (let j = i + 1; j < allPaths.length; j++) {
+      const a = allPaths[i].points;
+      const b = allPaths[j].points;
+      // Check all 4 endpoint pairs (start-start, start-end, end-start, end-end)
+      const pairs = [
+        [0, 0], [0, b.length - 1], [a.length - 1, 0], [a.length - 1, b.length - 1]
+      ];
+      for (const [ai, bi] of pairs) {
+        const dist = Math.sqrt(Math.pow(a[ai].lat - b[bi].lat, 2) + Math.pow(a[ai].lng - b[bi].lng, 2));
+        if (dist < SNAP_THRESHOLD && dist > 0) {
+          // Snap to midpoint
+          const mid = { lat: (a[ai].lat + b[bi].lat) / 2, lng: (a[ai].lng + b[bi].lng) / 2 };
+          a[ai] = mid;
+          b[bi] = mid;
+        }
+      }
+    }
+  }
+
+  // Draw lines
+  allPaths.forEach(({ street, points }) => {
     const color = ratingColor(street.rating);
     const isActive = street.id === activeStreetId;
 
-    // Glow outline behind the main line for depth
+    // Glow outline
     const glow = new google.maps.Polyline({
-      path: pathPoints,
+      path: points,
       geodesic: true,
       strokeColor: color,
-      strokeOpacity: 0.25,
-      strokeWeight: 14,
+      strokeOpacity: 0.2,
+      strokeWeight: 16,
       map: map
     });
     glow.addListener('click', () => selectStreet(street.id));
     polylines.push(glow);
 
-    // Main line — thick, round caps
+    // Main line
     const line = new google.maps.Polyline({
-      path: pathPoints,
+      path: points,
       geodesic: true,
       strokeColor: color,
       strokeOpacity: 0.9,
