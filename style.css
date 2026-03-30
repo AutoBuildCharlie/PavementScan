@@ -104,6 +104,45 @@ body {
   flex-direction: column;
   overflow: hidden;
 }
+/* ─── PROJECT SELECTOR ─────────────────────────────────────── */
+.project-bar {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 8px;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg-dark);
+}
+#project-dropdown {
+  flex: 1;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 6px 8px;
+  color: var(--text);
+  font-size: 12px;
+  font-weight: 600;
+  outline: none;
+  cursor: pointer;
+  min-width: 0;
+}
+#project-dropdown:focus { border-color: var(--accent); }
+.btn-project-action {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--text-dim);
+  font-size: 13px;
+  width: 28px;
+  height: 28px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.btn-project-action:hover { border-color: var(--accent); color: var(--accent); }
+.btn-project-delete:hover { border-color: var(--red); color: var(--red); }
+
 .panel-header {
   display: flex;
   align-items: center;

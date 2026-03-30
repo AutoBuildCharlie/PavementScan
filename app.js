@@ -4,32 +4,35 @@
    ================================================================ */
 
 /* ─── DATA SHAPE REFERENCE ──────────────────────────────────
-   localStorage key: "cse_streets"
+   localStorage key: "cse_projects"
    [
      {
-       id:             "uuid-string",
-       name:           "1200 W Ball Rd, Anaheim, CA",
-       lat:            33.8366,
-       lng:            -117.9143,
-       length:         500,
-       width:          24,
-       sqft:           12000,
-       rating:         "fair",      // "good"|"fair"|"poor"|"critical"|"pending"
-       notes:          "Parking lot near freeway",
-       analysis:       "AI analysis text...",
-       svImage:        "street-view-url",
-       path:           [{ lat, lng }, { lat, lng }, ...],  // multi-point highlight
-       photos:         [{ id, dataUrl, lat, lng, address, note, takenAt }],
-       scannedAt:      "2026-03-30T07:42:00Z",
-       createdAt:      "2026-03-30T07:40:00Z"
+       id:        "uuid",
+       name:      "Anaheim Q2 2026",
+       streets:   [ ...street objects... ],
+       createdAt: "2026-03-30T07:40:00Z"
      }
    ]
+
+   localStorage key: "cse_active_project"
+   "uuid" — currently selected project ID
+
+   Street object shape:
+   {
+     id, name, lat, lng, length, width, sqft,
+     rating, notes, analysis, svImage,
+     path: [{ lat, lng }, ...],
+     photos: [{ id, dataUrl, lat, lng, address, note, takenAt }],
+     scannedAt, createdAt
+   }
 ──────────────────────────────────────────────────────────── */
 
 // ─── GLOBALS ───────────────────────────────────────────────
 let map = null;
 let markers = [];
-let streets = [];
+let projects = [];
+let activeProject = null;
+let streets = []; // shortcut to activeProject.streets
 let activeStreetId = null;
 let highlightMode = null;
 let highlightStreetId = null;
@@ -37,7 +40,8 @@ let highlightMarkers = []; // temp markers while drawing
 let polylines = []; // drawn street lines + markers
 let tempPolyline = null; // live polyline while drawing
 let tempPath = []; // points being drawn
-const STORAGE_KEY = 'cse_streets';
+const PROJECTS_KEY = 'cse_projects';
+const ACTIVE_KEY = 'cse_active_project';
 const GEOCODE_BASE = 'https://maps.googleapis.com/maps/api/geocode/json';
 const SV_BASE = 'https://maps.googleapis.com/maps/api/streetview';
 let API_KEY = '';
@@ -48,7 +52,8 @@ const AI_PROXY = 'https://cse-worker.aestheticcal22.workers.dev';
 // ─── INIT ──────────────────────────────────────────────────
 function initMap() {
   API_KEY = getMapKey();
-  streets = loadStreets();
+  loadProjects();
+  migrateOldData();
 
   map = new google.maps.Map(document.getElementById('map'), {
     center: { lat: 33.83, lng: -117.91 }, // Anaheim default
@@ -67,6 +72,7 @@ function initMap() {
   map.addListener('click', (e) => handleMapClick(e.latLng));
   map.addListener('dblclick', (e) => handleMapDblClick(e.latLng));
 
+  renderProjectSelector();
   renderStreetList();
   placeAllMarkers();
   placePhotoMarkers();
@@ -74,15 +80,117 @@ function initMap() {
   updateStats();
 }
 
-// ─── STORAGE ───────────────────────────────────────────────
-function loadStreets() {
+// ─── STORAGE & PROJECTS ────────────────────────────────────
+function loadProjects() {
   try {
-    return JSON.parse(localStorage.getItem(STORAGE_KEY)) || [];
-  } catch { return []; }
+    projects = JSON.parse(localStorage.getItem(PROJECTS_KEY)) || [];
+  } catch { projects = []; }
+
+  // Get active project or create default
+  const activeId = localStorage.getItem(ACTIVE_KEY);
+  activeProject = projects.find(p => p.id === activeId);
+
+  if (!activeProject && projects.length > 0) {
+    activeProject = projects[0];
+  }
+  if (!activeProject) {
+    activeProject = createProject('Default Project');
+  }
+
+  streets = activeProject.streets;
+  localStorage.setItem(ACTIVE_KEY, activeProject.id);
+}
+
+function saveProjects() {
+  localStorage.setItem(PROJECTS_KEY, JSON.stringify(projects));
 }
 
 function saveStreets() {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(streets));
+  activeProject.streets = streets;
+  saveProjects();
+}
+
+function createProject(name) {
+  const project = {
+    id: crypto.randomUUID?.() || Date.now().toString(36),
+    name: name,
+    streets: [],
+    createdAt: new Date().toISOString()
+  };
+  projects.push(project);
+  saveProjects();
+  return project;
+}
+
+function switchProject(id) {
+  activeProject = projects.find(p => p.id === id);
+  if (!activeProject) return;
+  streets = activeProject.streets;
+  localStorage.setItem(ACTIVE_KEY, activeProject.id);
+  activeStreetId = null;
+  document.getElementById('detail-panel').classList.add('hidden');
+  renderProjectSelector();
+  renderStreetList();
+  placeAllMarkers();
+  placePhotoMarkers();
+  drawAllHighlights();
+  updateStats();
+  if (streets.length > 0) fitMapToMarkers();
+}
+
+function deleteProject(id) {
+  if (projects.length <= 1) { showToast('Cannot delete the only project'); return; }
+  if (!confirm('Delete this project and all its streets?')) return;
+  projects = projects.filter(p => p.id !== id);
+  saveProjects();
+  switchProject(projects[0].id);
+  showToast('Project deleted');
+}
+
+function renameProject(id) {
+  const project = projects.find(p => p.id === id);
+  if (!project) return;
+  const name = prompt('Project name:', project.name);
+  if (!name || !name.trim()) return;
+  project.name = name.trim();
+  saveProjects();
+  renderProjectSelector();
+}
+
+function renderProjectSelector() {
+  const container = document.getElementById('project-selector');
+  if (!container) return;
+  container.innerHTML = `
+    <select id="project-dropdown" onchange="switchProject(this.value)">
+      ${projects.map(p => `<option value="${p.id}" ${p.id === activeProject.id ? 'selected' : ''}>${p.name} (${p.streets.length})</option>`).join('')}
+    </select>
+    <button class="btn-project-action" onclick="addNewProject()" title="New Project">+</button>
+    <button class="btn-project-action" onclick="renameProject('${activeProject.id}')" title="Rename">&#9998;</button>
+    <button class="btn-project-action btn-project-delete" onclick="deleteProject('${activeProject.id}')" title="Delete">&#128465;</button>
+  `;
+}
+
+function addNewProject() {
+  const name = prompt('New project name:');
+  if (!name || !name.trim()) return;
+  const project = createProject(name.trim());
+  switchProject(project.id);
+  showToast('Project created');
+}
+
+// Migrate old data from cse_streets to projects
+function migrateOldData() {
+  const oldData = localStorage.getItem('cse_streets');
+  if (!oldData) return;
+  try {
+    const oldStreets = JSON.parse(oldData);
+    if (oldStreets.length > 0) {
+      activeProject.streets = oldStreets;
+      streets = activeProject.streets;
+      saveProjects();
+    }
+    localStorage.removeItem('cse_streets');
+  } catch { /* skip */ }
 }
 
 // ─── MODAL CONTROLS ────────────────────────────────────────
