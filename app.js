@@ -840,7 +840,12 @@ function selectStreet(id) {
       <div class="detail-stat">
         <div class="detail-stat-label">Rating</div>
         <div class="detail-stat-value"><span class="rating-badge rating-${street.rating}">${ratingLabel(street.rating)}</span></div>
-        <div style="font-size:10px;color:var(--text-dim);margin-top:2px;">${ratingDescription(street.rating)}</div>
+        <div class="rating-picker">
+          <button class="rp-btn ${street.rating === 'level-1' ? 'rp-active' : ''}" style="--rp-color:#22c55e" onclick="setRating('${street.id}','level-1')">1</button>
+          <button class="rp-btn ${street.rating === 'level-2' ? 'rp-active' : ''}" style="--rp-color:#eab308" onclick="setRating('${street.id}','level-2')">2</button>
+          <button class="rp-btn ${street.rating === 'level-3' ? 'rp-active' : ''}" style="--rp-color:#f97316" onclick="setRating('${street.id}','level-3')">3</button>
+          <button class="rp-btn ${street.rating === 'level-4' ? 'rp-active' : ''}" style="--rp-color:#ef4444" onclick="setRating('${street.id}','level-4')">4</button>
+        </div>
       </div>
       <div class="detail-stat">
         <div class="detail-stat-label">Length</div>
@@ -998,6 +1003,19 @@ function closeDetailPanel() {
   document.getElementById('detail-panel').classList.add('hidden');
   activeStreetId = null;
   renderStreetList();
+}
+
+// ─── SET RATING ───────────────────────────────────────────
+function setRating(id, rating) {
+  const street = streets.find(s => s.id === id);
+  if (!street) return;
+  street.rating = rating;
+  saveStreets();
+  renderStreetList();
+  updateStats();
+  placeAllMarkers();
+  selectStreet(id);
+  showToast(`Rating set to ${ratingLabel(rating)}`);
 }
 
 // ─── EDIT ANALYSIS & ADMIN NOTES ──────────────────────────
