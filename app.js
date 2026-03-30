@@ -113,6 +113,7 @@ function createProject(name) {
   const project = {
     id: crypto.randomUUID?.() || Date.now().toString(36),
     name: name,
+    includeWideCracks: false, // default: skip 1.25"+ cracks
     streets: [],
     createdAt: new Date().toISOString()
   };
@@ -184,7 +185,19 @@ function renderProjectSelector() {
     <button class="btn-project-action" onclick="addNewProject()" title="New Project">+</button>
     <button class="btn-project-action" onclick="renameProject('${activeProject.id}')" title="Rename">&#9998;</button>
     <button class="btn-project-action btn-project-delete" onclick="deleteProject('${activeProject.id}')" title="Delete">&#128465;</button>
+    </select>
+    <div class="wide-crack-toggle" onclick="toggleWideCracks()" title="${activeProject.includeWideCracks ? 'Wide cracks (1.25&quot;+) INCLUDED in scope' : 'Wide cracks (1.25&quot;+) NOT in scope — click to change'}">
+      <span class="wc-label">1.25"+</span>
+      <span class="wc-status ${activeProject.includeWideCracks ? 'wc-on' : 'wc-off'}">${activeProject.includeWideCracks ? 'IN' : 'OUT'}</span>
+    </div>
   `;
+}
+
+function toggleWideCracks() {
+  activeProject.includeWideCracks = !activeProject.includeWideCracks;
+  saveProjects();
+  renderProjectSelector();
+  showToast(activeProject.includeWideCracks ? 'Wide cracks (1.25"+) now IN scope' : 'Wide cracks (1.25"+) now OUT of scope');
 }
 
 function addNewProject() {
@@ -482,12 +495,14 @@ Use this rating scale:
 - Level 3: Moderate heavy amount, deep cracks and alligator cracking
 - Level 4: Alligator cracking everywhere, deep cracks and heavy cracking every 3-5 feet
 
+IMPORTANT: If you see any cracks that appear wider than 1.25 inches, flag them with "⚠ WIDE CRACKS DETECTED (1.25"+)" — these are typically outside standard scope.
+
 Your response must include:
 1. PHOTOS ANALYZED: ${validPairs.length} images covering ${formatNumber(street.length || 0)} ft
 2. WHAT I CAN SEE: 2-4 bullet points. Note corner vs mid-street differences. Note if condition varies along the street.
 3. CORNERS: Specifically note condition at intersections/corners if visible.
-4. WHAT I CAN'T SEE: 1-2 bullet points about limitations
-5. RECOMMENDATION: Whether on-site inspection is needed and why
+4. WIDE CRACKS: If any cracks appear wider than 1.25 inches, note their location. If none visible, write "None detected from this view."
+5. WHAT I CAN'T SEE: 1-2 bullet points about limitations
 6. Level: [1/2/3/4]
 
 Be honest. Weight toward the worst section. Do not guess — only rate what you can actually see.`

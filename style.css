@@ -143,6 +143,31 @@ body {
 .btn-project-action:hover { border-color: var(--accent); color: var(--accent); }
 .btn-project-delete:hover { border-color: var(--red); color: var(--red); }
 
+.wide-crack-toggle {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 8px;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  cursor: pointer;
+  font-size: 10px;
+  background: var(--bg-card);
+  margin-top: 6px;
+  width: 100%;
+  justify-content: center;
+}
+.wide-crack-toggle:hover { border-color: var(--accent); }
+.wc-label { color: var(--text-dim); font-weight: 500; }
+.wc-status {
+  font-weight: 700;
+  padding: 1px 6px;
+  border-radius: 3px;
+  font-size: 9px;
+}
+.wc-on { background: rgba(34,197,94,0.2); color: #22c55e; }
+.wc-off { background: rgba(239,68,68,0.2); color: #ef4444; }
+
 .panel-header {
   display: flex;
   align-items: center;
