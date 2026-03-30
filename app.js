@@ -110,13 +110,14 @@ async function saveStreet() {
   closeModal();
   showScanModal('Looking up address...');
 
-  // Geocode the address
-  const geo = await geocodeAddress(name);
-  if (!geo) {
-    hideScanModal();
-    showToast('Could not find that address — try a more specific one');
-    return;
-  }
+  try {
+    // Geocode the address
+    const geo = await geocodeAddress(name);
+    if (!geo) {
+      hideScanModal();
+      showToast('Could not find that address — try a more specific one');
+      return;
+    }
 
   showScanModal('Pulling Street View imagery...');
 
@@ -158,6 +159,11 @@ async function saveStreet() {
   fitMapToMarkers();
 
   showToast('Street added and scanned');
+  } catch (err) {
+    console.error('Save street error:', err);
+    hideScanModal();
+    showToast('Something went wrong — try again');
+  }
 }
 
 // ─── GEOCODING ─────────────────────────────────────────────
