@@ -86,6 +86,9 @@ function initMap() {
 
   // Backfill boundary points for existing streets
   migrateBoundaryPoints();
+
+  // Fix street names to show route name instead of intersection
+  migrateStreetNames();
 }
 
 // ─── STORAGE & PROJECTS ────────────────────────────────────
@@ -363,6 +366,31 @@ async function migrateBoundaryPoints() {
   }
   saveProjects();
   drawAllHighlights();
+}
+
+// ─── MIGRATE STREET NAMES (one-time, runs on load) ─────────
+async function migrateStreetNames() {
+  const toFix = [];
+  projects.forEach(p => {
+    p.streets.forEach(s => {
+      if (!s.nameFixed && s.lat && s.lng) toFix.push(s);
+    });
+  });
+  if (toFix.length === 0) return;
+
+  for (const s of toFix) {
+    const midPt = s.path && s.path.length >= 2
+      ? s.path[Math.floor(s.path.length / 2)]
+      : { lat: s.lat, lng: s.lng };
+    const geo = await geocodeDetails(midPt);
+    if (geo.route) s.name = geo.route;
+    s.nameFixed = true;
+    await new Promise(r => setTimeout(r, 200));
+  }
+
+  saveProjects();
+  renderStreetList();
+  if (activeStreetId) selectStreet(activeStreetId);
 }
 
 // ─── MIGRATE SCAN PHOTOS (one-time, runs on load) ──────────
