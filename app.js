@@ -2080,7 +2080,14 @@ async function saveHighlightedStreet(startPt, endPt) {
 
   const street = {
     id: crypto.randomUUID?.() || Date.now().toString(36),
-    name: roadInfo.name || midGeo.route || startGeo.route || 'Unknown location',
+    name: (() => {
+      // Vote across start/mid/end — most common route name wins
+      const votes = [startGeo.route, midGeo.route, endGeo.route, roadInfo.name].filter(Boolean);
+      const counts = {};
+      votes.forEach(n => { counts[n] = (counts[n] || 0) + 1; });
+      const best = Object.entries(counts).sort((a, b) => b[1] - a[1])[0];
+      return best ? best[0] : 'Unknown location';
+    })(),
     lat: startPt.lat,
     lng: startPt.lng,
     length: roadLengthFt,
@@ -2140,8 +2147,7 @@ async function saveHighlightedStreet(startPt, endPt) {
   document.getElementById('highlight-bar-text').textContent = `Street ${drawCount} saved (${formatNumber(roadLengthFt)} ft) — click next street or Done`;
   showToast(`${formatNumber(roadLengthFt)} ft — ${formatNumber(street.sqft)} sq ft`);
 
-  // Auto-set name from Nominatim — user can rename from the detail panel
-  if (roadInfo.name) { street.name = roadInfo.name; saveStreets(); renderStreetList(); }
+  // Name already set from vote across start/mid/end geocodes — saved above
 
   if (street.crossesBoundary) {
     setTimeout(() => showToast(`⚠ ${street.boundaryNote}`, 5000), 1500);
