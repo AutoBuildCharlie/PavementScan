@@ -1423,6 +1423,7 @@ function selectStreet(id) {
                   ${p.lat ? `<button class="btn-photo-jump" onclick="event.stopPropagation();map.panTo({lat:${p.lat},lng:${p.lng}});map.setZoom(19)" title="Jump to location on map">&#128205;</button>` : ''}
                 </small>
                 <small>${new Date(p.takenAt).toLocaleDateString()}</small>
+                ${p.rating ? `<span class="rating-badge rating-${p.rating}" style="font-size:9px;padding:1px 5px">${ratingLabel(p.rating)}</span>` : ''}
                 ${p.note ? `<small class="photo-note">${escHtml(p.note)}</small>` : ''}
               </div>
               <button class="photo-delete" onclick="event.stopPropagation();deletePhoto('${street.id}','${p.id}')" title="Delete">&times;</button>
@@ -1449,6 +1450,8 @@ function selectStreet(id) {
                   ${p.lat ? `<button class="btn-photo-jump" onclick="event.stopPropagation();map.panTo({lat:${p.lat},lng:${p.lng}});map.setZoom(19)" title="Jump to location on map">&#128205;</button>` : ''}
                 </small>
                 <small>${new Date(p.takenAt).toLocaleDateString()}</small>
+                ${p.rating ? `<span class="rating-badge rating-${p.rating}" style="font-size:9px;padding:1px 5px">${ratingLabel(p.rating)}</span>` : ''}
+                ${p.note ? `<small class="photo-note">${escHtml(p.note)}</small>` : ''}
               </div>
               <button class="photo-delete" onclick="event.stopPropagation();deleteRRPhoto('${street.id}','${p.id}')" title="Delete">&times;</button>
             </div>
