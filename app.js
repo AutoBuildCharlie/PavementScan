@@ -1418,13 +1418,13 @@ function selectStreet(id) {
             <div class="photo-card" onclick="openLightbox(streets.find(s=>s.id==='${street.id}').photos, ${i}, '${street.id}')" style="cursor:pointer" title="Click to view">
               <img src="${p.dataUrl}" alt="Crack photo" class="photo-thumb">
               <div class="photo-info">
-                <small>
-                  ${p.address ? escHtml(p.address.split(',')[0]) : 'GPS tagged'}
+                <div class="photo-info-top">
+                  <span class="photo-info-addr">${p.address ? escHtml(p.address.split(',')[0]) : 'GPS tagged'}</span>
                   ${p.lat ? `<button class="btn-photo-jump" onclick="event.stopPropagation();map.panTo({lat:${p.lat},lng:${p.lng}});map.setZoom(19)" title="Jump to location on map">&#128205;</button>` : ''}
-                </small>
-                <small>${new Date(p.takenAt).toLocaleDateString()}</small>
-                ${p.rating ? `<span class="rating-badge rating-${p.rating}" style="font-size:9px;padding:1px 5px">${ratingLabel(p.rating)}</span>` : ''}
-                ${p.note ? `<small class="photo-note">${escHtml(p.note)}</small>` : ''}
+                </div>
+                <span class="photo-info-date">${new Date(p.takenAt).toLocaleDateString()}</span>
+                ${p.rating ? `<span class="rating-badge rating-${p.rating}" style="font-size:9px;padding:1px 5px;align-self:flex-start">${ratingLabel(p.rating)}</span>` : ''}
+                ${p.note ? `<span class="photo-note">${escHtml(p.note)}</span>` : ''}
               </div>
               <button class="photo-delete" onclick="event.stopPropagation();deletePhoto('${street.id}','${p.id}')" title="Delete">&times;</button>
             </div>
@@ -1444,14 +1444,13 @@ function selectStreet(id) {
             <div class="photo-card" onclick="openAllRRLightbox('${p.id}')" style="cursor:pointer;border-color:rgba(239,68,68,0.3)" title="Click to view">
               <img src="${p.dataUrl}" alt="R&R photo" class="photo-thumb">
               <div class="photo-info">
-                <small style="color:#ef4444;font-weight:600">R&amp;R</small>
-                <small>
-                  ${p.address ? escHtml(p.address.split(',')[0]) : 'GPS tagged'}
+                <div class="photo-info-top">
+                  <span class="photo-info-addr" style="color:#ef4444">R&amp;R — ${p.address ? escHtml(p.address.split(',')[0]) : 'GPS tagged'}</span>
                   ${p.lat ? `<button class="btn-photo-jump" onclick="event.stopPropagation();map.panTo({lat:${p.lat},lng:${p.lng}});map.setZoom(19)" title="Jump to location on map">&#128205;</button>` : ''}
-                </small>
-                <small>${new Date(p.takenAt).toLocaleDateString()}</small>
-                ${p.rating ? `<span class="rating-badge rating-${p.rating}" style="font-size:9px;padding:1px 5px">${ratingLabel(p.rating)}</span>` : ''}
-                ${p.note ? `<small class="photo-note">${escHtml(p.note)}</small>` : ''}
+                </div>
+                <span class="photo-info-date">${new Date(p.takenAt).toLocaleDateString()}</span>
+                ${p.rating ? `<span class="rating-badge rating-${p.rating}" style="font-size:9px;padding:1px 5px;align-self:flex-start">${ratingLabel(p.rating)}</span>` : ''}
+                ${p.note ? `<span class="photo-note">${escHtml(p.note)}</span>` : ''}
               </div>
               <button class="photo-delete" onclick="event.stopPropagation();deleteRRPhoto('${street.id}','${p.id}')" title="Delete">&times;</button>
             </div>

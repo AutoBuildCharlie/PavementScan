@@ -1309,66 +1309,66 @@ body {
 }
 .photo-card {
   display: flex;
-  gap: 8px;
-  align-items: center;
+  gap: 10px;
+  align-items: flex-start;
   background: var(--bg-dark);
   border: 1px solid var(--border);
-  border-radius: 6px;
-  padding: 6px;
+  border-radius: 8px;
+  padding: 8px;
   position: relative;
 }
 .photo-thumb {
-  width: 60px;
-  height: 45px;
+  width: 64px;
+  height: 64px;
   object-fit: cover;
-  border-radius: 4px;
+  border-radius: 6px;
   flex-shrink: 0;
 }
 .photo-info {
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: 3px;
   overflow: hidden;
   flex: 1;
+  padding-right: 18px;
 }
-.photo-info small {
-  font-size: 10px;
-  color: var(--text-dim);
+.photo-info-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+}
+.photo-info-addr {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
+.photo-info-date {
+  font-size: 10px;
+  color: var(--text-dim);
+}
 .photo-note {
-  color: var(--text) !important;
-  white-space: normal !important;
+  font-size: 11px;
+  color: var(--text-dim);
   font-style: italic;
-  margin-top: 2px;
+  white-space: normal;
+  line-height: 1.4;
 }
 .btn-photo-jump {
-  background: rgba(99,102,241,0.15);
-  border: 1px solid rgba(99,102,241,0.4);
-  border-radius: 6px;
+  background: none;
+  border: none;
   cursor: pointer;
-  font-size: 14px;
-  padding: 3px 7px;
-  vertical-align: middle;
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
+  font-size: 13px;
+  padding: 0;
   color: var(--accent);
-  font-weight: 600;
-  margin-top: 4px;
-  transition: background 0.15s, border-color 0.15s;
+  opacity: 0.7;
+  transition: opacity 0.15s;
+  flex-shrink: 0;
 }
-.btn-photo-jump::after {
-  content: 'View on map';
-  font-size: 10px;
-  color: var(--accent);
-}
-.btn-photo-jump:hover {
-  background: rgba(99,102,241,0.28);
-  border-color: var(--accent);
-}
+.btn-photo-jump:hover { opacity: 1; }
 .photo-delete {
   background: none;
   border: none;
