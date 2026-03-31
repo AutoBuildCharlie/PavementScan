@@ -816,6 +816,9 @@ function isMainStreet(street) {
 }
 
 // Calculate sample points — always looking INTO the street from each endpoint
+// Start/end points are offset 40ft inward so the camera sits on the street,
+// not at the intersection corner where it would capture the cross street instead.
+const ENDPOINT_OFFSET_FT = 40;
 function getSamplePoints(street) {
   const path = street.path;
   if (!path || path.length < 2) return [{ lat: street.lat, lng: street.lng, heading: 0, label: 'Start' }];
@@ -826,11 +829,15 @@ function getSamplePoints(street) {
   const headingBackward = (headingForward + 180) % 360;
   const length = street.length || 0;
 
+  // Offset start 40ft inward (toward end), offset end 40ft inward (toward start)
+  const startInset = offsetPoint(startPt.lat, startPt.lng, headingForward, ENDPOINT_OFFSET_FT);
+  const endInset   = offsetPoint(endPt.lat, endPt.lng, headingBackward, ENDPOINT_OFFSET_FT);
+
   const points = [];
 
   if (isMainStreet(street)) {
     // ── MAIN STREET — center line, 1 photo every 400ft ─────
-    points.push({ ...startPt, heading: headingForward, label: 'Start (looking in)' });
+    points.push({ ...startInset, heading: headingForward, label: 'Start (looking in)' });
 
     const midCount = Math.min(6, Math.floor(length / 400));
     for (let i = 1; i <= midCount; i++) {
@@ -843,11 +850,11 @@ function getSamplePoints(street) {
       });
     }
 
-    points.push({ ...endPt, heading: headingBackward, label: 'End (looking in)' });
+    points.push({ ...endInset, heading: headingBackward, label: 'End (looking in)' });
 
   } else {
     // ── RESIDENTIAL — 1 photo per 200ft, start + end only ──
-    points.push({ ...startPt, heading: headingForward, label: 'Start (looking in)' });
+    points.push({ ...startInset, heading: headingForward, label: 'Start (looking in)' });
 
     const midCount = Math.min(5, Math.floor(length / 200));
     for (let i = 1; i <= midCount; i++) {
@@ -860,7 +867,7 @@ function getSamplePoints(street) {
       });
     }
 
-    points.push({ ...endPt, heading: headingBackward, label: 'End (looking in)' });
+    points.push({ ...endInset, heading: headingBackward, label: 'End (looking in)' });
   }
 
   return points;
