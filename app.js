@@ -1872,7 +1872,6 @@ let _activeInfoWindow = null;
 function placePhotoMarkers() {
   photoMarkers.forEach(m => removeFromMap(m));
   photoMarkers = [];
-  if (_activeInfoWindow) { _activeInfoWindow.close(); _activeInfoWindow = null; }
 
   streets.forEach(street => {
     if (!street.photos) return;
@@ -1886,13 +1885,9 @@ function placePhotoMarkers() {
         gmpClickable: true
       });
 
-      const infoContent = `<div style="max-width:200px;font-family:sans-serif"><img src="${photo.dataUrl}" style="width:100%;border-radius:4px;margin-bottom:4px"><div style="font-size:11px;color:#555">${escHtml(photo.address || 'GPS tagged')}<br>${new Date(photo.takenAt).toLocaleString()}${photo.note ? '<br><em>' + escHtml(photo.note) + '</em>' : ''}</div></div>`;
-      const infoWindow = new google.maps.InfoWindow({ content: infoContent });
-
+      const photoIndex = street.photos.indexOf(photo);
       const openInfo = () => {
-        if (_activeInfoWindow) _activeInfoWindow.close();
-        infoWindow.open({ map, anchor: marker });
-        _activeInfoWindow = infoWindow;
+        openLightbox(street.photos, photoIndex, street.id);
       };
       marker.addEventListener('gmp-click', openInfo);
       dotEl.addEventListener('click', openInfo);
