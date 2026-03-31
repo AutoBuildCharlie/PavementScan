@@ -1577,13 +1577,33 @@ function lightboxNav(dir) {
   _renderLightbox();
 }
 
-function _renderLightbox() {
+async function _renderLightbox() {
   const p = _lbPhotos[_lbIdx];
-  document.getElementById('lightbox-img').src = _photoCache.get(p.hdUrl) || p.hdUrl || p.url;
-  document.getElementById('lightbox-label').textContent = p.label;
-  document.getElementById('lightbox-count').textContent = `${_lbIdx + 1} / ${_lbPhotos.length}`;
+  const img = document.getElementById('lightbox-img');
+  const label = document.getElementById('lightbox-label');
+  const count = document.getElementById('lightbox-count');
   const sel = document.getElementById('lightbox-rating-select');
+
+  label.textContent = p.label;
+  count.textContent = `${_lbIdx + 1} / ${_lbPhotos.length}`;
   if (sel) sel.value = p.rating || '';
+
+  // Use cached base64, or fetch on-demand through the worker proxy
+  const cached = _photoCache.get(p.hdUrl);
+  if (cached) {
+    img.src = cached;
+  } else {
+    img.src = '';
+    img.alt = 'Loading...';
+    const dataUrl = await imageUrlToBase64(p.hdUrl || p.url);
+    if (dataUrl) {
+      _photoCache.set(p.hdUrl, dataUrl);
+      img.src = dataUrl;
+      img.alt = '';
+    } else {
+      img.alt = 'Photo not available';
+    }
+  }
 }
 
 // ─── HELPERS ───────────────────────────────────────────────
