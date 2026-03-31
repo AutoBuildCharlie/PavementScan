@@ -61,7 +61,7 @@ function initMap() {
     zoom: 12,
     mapTypeId: 'roadmap',
     mapId: 'f2e86140855a96ec510d9c73',
-    styles: darkMapStyle(),
+    colorScheme: 'DARK',
     disableDefaultUI: true,
     zoomControl: true,
     mapTypeControl: true,
@@ -91,14 +91,18 @@ function initMap() {
 }
 
 // ─── ADVANCED MARKER HELPER ────────────────────────────────
-// Wraps AdvancedMarkerElement with setMap/getPosition shims
-// so existing code doesn't need to change
 function makeMarker(opts) {
-  const { icon, ...rest } = opts; // strip old icon field
+  const { icon, ...rest } = opts;
   const m = new google.maps.marker.AdvancedMarkerElement(rest);
-  m.setMap = (mapInst) => { m.map = mapInst; };
   m.getPosition = () => m.position;
   return m;
+}
+
+// Safe removal — works for both Polylines (setMap) and AdvancedMarkers (m.map = null)
+function removeFromMap(item) {
+  if (!item) return;
+  if (typeof item.setMap === 'function') item.setMap(null);
+  else item.map = null;
 }
 
 function makeDotContent(color, size, borderColor, opacity = 1) {
@@ -987,7 +991,7 @@ function analyzeWithPlaceholder(street) {
 // ─── MAP MARKERS ───────────────────────────────────────────
 function placeAllMarkers() {
   // Clear existing markers
-  markers.forEach(m => m.setMap(null));
+  markers.forEach(m => removeFromMap(m));
   markers = [];
 
   streets.forEach(street => {
@@ -1000,7 +1004,7 @@ function placeAllMarkers() {
       content: makeDotContent(ratingColor(street.rating), hasLine ? 12 : 16, '#fff', hasLine ? 0 : 1)
     });
 
-    marker.addListener('click', () => selectStreet(street.id));
+    marker.addEventListener('gmp-click', () => selectStreet(street.id));
     markers.push(marker);
   });
 }
@@ -1260,15 +1264,15 @@ function selectStreet(id) {
     if (_miniMapTimer) clearTimeout(_miniMapTimer);
     _miniMapTimer = setTimeout(() => {
       if (svPositionListener) { google.maps.event.removeListener(svPositionListener); svPositionListener = null; }
-      if (miniMapMarker) { miniMapMarker.setMap(null); miniMapMarker = null; }
-      miniMapLines.forEach(l => l.setMap(null));
+      if (miniMapMarker) { removeFromMap(miniMapMarker); miniMapMarker = null; }
+      miniMapLines.forEach(l => removeFromMap(l));
       miniMapLines = [];
       miniMap = new google.maps.Map(document.getElementById('mini-map'), {
         center: { lat: street.lat, lng: street.lng },
         zoom: 17,
         mapTypeId: 'roadmap',
         mapId: 'f2e86140855a96ec510d9c73',
-        styles: darkMapStyle(),
+        colorScheme: 'DARK',
         disableDefaultUI: true,
         zoomControl: true
       });
@@ -1639,7 +1643,7 @@ function goToMyLocation() {
       map.setZoom(18);
 
       // Drop a blue "You" marker
-      if (window._myLocationMarker) window._myLocationMarker.setMap(null);
+      if (window._myLocationMarker) removeFromMap(window._myLocationMarker);
       window._myLocationMarker = makeMarker({
         position: { lat, lng },
         map: map,
@@ -1761,7 +1765,7 @@ let photoMarkers = [];
 let _activeInfoWindow = null;
 
 function placePhotoMarkers() {
-  photoMarkers.forEach(m => m.setMap(null));
+  photoMarkers.forEach(m => removeFromMap(m));
   photoMarkers = [];
   if (_activeInfoWindow) { _activeInfoWindow.close(); _activeInfoWindow = null; }
 
@@ -1778,7 +1782,7 @@ function placePhotoMarkers() {
       const infoWindow = new google.maps.InfoWindow({
         content: `<div style="max-width:200px;"><img src="${photo.dataUrl}" style="width:100%;border-radius:4px;"><br><small>${escHtml(photo.address || '')}<br>${new Date(photo.takenAt).toLocaleString()}</small></div>`
       });
-      marker.addListener('click', () => {
+      marker.addEventListener('gmp-click', () => {
         if (_activeInfoWindow) _activeInfoWindow.close();
         infoWindow.open(map, marker);
         _activeInfoWindow = infoWindow;
@@ -1842,9 +1846,9 @@ function closeStreetViewPanel() {
   document.getElementById('detail-panel').classList.add('hidden');
   if (svPositionListener) { google.maps.event.removeListener(svPositionListener); svPositionListener = null; }
   streetViewPano = null;
-  if (miniMapMarker) { miniMapMarker.setMap(null); miniMapMarker = null; }
+  if (miniMapMarker) { removeFromMap(miniMapMarker); miniMapMarker = null; }
   miniMap = null;
-  miniMapLines.forEach(l => l.setMap(null));
+  miniMapLines.forEach(l => removeFromMap(l));
   miniMapLines = [];
   streetViewMode = false;
   document.querySelector('.qa-streetview').classList.remove('qa-active');
@@ -2153,12 +2157,12 @@ function addTempMarker(latLng, label, color) {
 }
 
 function clearTempMarkers() {
-  highlightMarkers.forEach(m => m.setMap(null));
+  highlightMarkers.forEach(m => removeFromMap(m));
   highlightMarkers = [];
 }
 
 function drawAllHighlights() {
-  polylines.forEach(p => p.setMap(null));
+  polylines.forEach(p => removeFromMap(p));
   polylines = [];
 
   // Collect all endpoints for snapping
@@ -2267,14 +2271,14 @@ function drawAllHighlights() {
       startEl.style.cssText = 'color:#f97316;font-size:11px;font-weight:bold;white-space:nowrap;text-shadow:0 1px 2px rgba(0,0,0,0.8);cursor:pointer;';
       startEl.textContent = startCity;
       const startLabel = makeMarker({ position: startLabelPos, map: map, title: startCity, content: startEl, zIndex: 9 });
-      startLabel.addListener('click', () => selectStreet(street.id));
+      startLabel.addEventListener('gmp-click', () => selectStreet(street.id));
       polylines.push(startLabel);
 
       const endEl = document.createElement('div');
       endEl.style.cssText = 'color:#f97316;font-size:11px;font-weight:bold;white-space:nowrap;text-shadow:0 1px 2px rgba(0,0,0,0.8);cursor:pointer;';
       endEl.textContent = endCity;
       const endLabel = makeMarker({ position: endLabelPos, map: map, title: endCity, content: endEl, zIndex: 9 });
-      endLabel.addListener('click', () => selectStreet(street.id));
+      endLabel.addEventListener('gmp-click', () => selectStreet(street.id));
       polylines.push(endLabel);
     }
   });
