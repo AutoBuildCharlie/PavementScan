@@ -2431,7 +2431,76 @@ function openStreetViewAt(lat, lng) {
   if (activeStreetId) {
     window._svLastStreetId = activeStreetId;
     selectStreet(activeStreetId);
+  } else {
+    // No street selected — show standalone mini map panel
+    showFreeMiniMap(lat, lng);
   }
+}
+
+function showFreeMiniMap(lat, lng) {
+  const detailPanel = document.getElementById('detail-panel');
+  const detailContent = document.getElementById('detail-content');
+
+  detailContent.innerHTML = `
+    <div class="detail-section" style="margin-top:8px">
+      <h4 style="margin-bottom:8px">Your Position</h4>
+      <div id="mini-map" style="width:100%;height:260px;border-radius:8px;border:1px solid var(--border);margin-bottom:6px;"></div>
+      <div id="mini-map-address" class="detail-jurisdiction" style="font-size:11px;">Loading location...</div>
+    </div>
+    <div class="detail-section" style="color:var(--text-dim);font-size:12px;text-align:center;padding:16px 0">
+      No street selected.<br>Click a street card to open its detail.
+    </div>
+  `;
+  detailPanel.classList.remove('hidden');
+
+  if (_miniMapTimer) clearTimeout(_miniMapTimer);
+  _miniMapTimer = setTimeout(() => {
+    if (svPositionListener) { google.maps.event.removeListener(svPositionListener); svPositionListener = null; }
+    if (miniMapMarker) { removeFromMap(miniMapMarker); miniMapMarker = null; }
+    miniMapLines.forEach(l => removeFromMap(l));
+    miniMapLines = [];
+
+    miniMap = new google.maps.Map(document.getElementById('mini-map'), {
+      center: { lat, lng },
+      zoom: 17,
+      mapTypeId: 'roadmap',
+      mapId: 'f2e86140855a96ecc6c0576f',
+      colorScheme: 'DARK',
+      disableDefaultUI: true,
+      zoomControl: true
+    });
+
+    miniMapMarker = makeMarker({
+      position: { lat, lng },
+      map: miniMap,
+      content: makeDotContent('#f59e0b', 20, '#fff')
+    });
+
+    // Draw all project streets as colored lines
+    streets.forEach(s => {
+      if (!s.path || s.path.length < 2) return;
+      const line = new google.maps.Polyline({ path: s.path, strokeColor: ratingColor(s.rating), strokeOpacity: 0.9, strokeWeight: 5, map: miniMap });
+      miniMapLines.push(line);
+    });
+
+    // Track position as user walks around in Street View
+    let svGeoTimer = null;
+    if (streetViewPano) {
+      svPositionListener = streetViewPano.addListener('position_changed', () => {
+        const pos = streetViewPano.getPosition();
+        if (miniMapMarker) { miniMapMarker.position = { lat: pos.lat(), lng: pos.lng() }; miniMap.setCenter(pos); }
+
+        clearTimeout(svGeoTimer);
+        svGeoTimer = setTimeout(() => {
+          const geocoder = new google.maps.Geocoder();
+          geocoder.geocode({ location: { lat: pos.lat(), lng: pos.lng() } }, (results, status) => {
+            const el = document.getElementById('mini-map-address');
+            if (el && status === 'OK' && results.length > 0) el.textContent = results[0].formatted_address;
+          });
+        }, 2000);
+      });
+    }
+  }, 50);
 }
 
 // ─── STREET VIEW SNAP ──────────────────────────────────────
