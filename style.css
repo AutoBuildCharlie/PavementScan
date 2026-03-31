@@ -865,6 +865,25 @@ body {
   font-size: 13px;
   font-weight: 500;
 }
+.lightbox-rating {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.lightbox-rating-label {
+  color: var(--text-dim);
+  font-size: 12px;
+  white-space: nowrap;
+}
+.lightbox-rating select {
+  background: var(--card);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 4px 8px;
+  font-size: 13px;
+  cursor: pointer;
+}
 .lightbox-nav {
   display: flex;
   align-items: center;

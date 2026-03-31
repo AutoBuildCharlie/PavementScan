@@ -1168,7 +1168,7 @@ function selectStreet(id) {
       <h4>Photos AI Analyzed (${street.scanPhotos.length})</h4>
       <div class="scan-photo-grid">
         ${street.scanPhotos.map((p, i) => `
-          <div class="scan-photo-card scan-photo-rated-${p.rating || 'none'}" onclick="openLightbox(streets.find(s=>s.id==='${street.id}').scanPhotos, ${i})" title="Click to view photo">
+          <div class="scan-photo-card scan-photo-rated-${p.rating || 'none'}" onclick="openLightbox(streets.find(s=>s.id==='${street.id}').scanPhotos, ${i}, '${street.id}')" title="Click to view photo">
             <span class="scan-photo-icon">&#128247;</span>
             <span class="scan-photo-label">${escHtml(p.label)}</span>
             <select class="photo-rating-select photo-rating-${p.rating || ''}" onclick="event.stopPropagation()" onchange="setPhotoRating('${street.id}', ${i}, this.value)">
@@ -1550,13 +1550,20 @@ function updateStats() {
 }
 
 // ─── PHOTO LIGHTBOX ────────────────────────────────────────
-let _lbPhotos = [], _lbIdx = 0;
+let _lbPhotos = [], _lbIdx = 0, _lbStreetId = null;
 
-function openLightbox(photos, idx) {
+function openLightbox(photos, idx, streetId) {
   _lbPhotos = photos;
   _lbIdx = idx;
+  _lbStreetId = streetId || null;
   _renderLightbox();
   document.getElementById('photo-lightbox').classList.remove('hidden');
+}
+
+function lightboxSetRating(value) {
+  if (!_lbStreetId) return;
+  setPhotoRating(_lbStreetId, _lbIdx, value);
+  _lbPhotos[_lbIdx].rating = value || null;
 }
 
 function closeLightbox() {
@@ -1574,6 +1581,8 @@ function _renderLightbox() {
   document.getElementById('lightbox-img').src = _photoCache.get(p.hdUrl) || p.hdUrl || p.url;
   document.getElementById('lightbox-label').textContent = p.label;
   document.getElementById('lightbox-count').textContent = `${_lbIdx + 1} / ${_lbPhotos.length}`;
+  const sel = document.getElementById('lightbox-rating-select');
+  if (sel) sel.value = p.rating || '';
 }
 
 // ─── HELPERS ───────────────────────────────────────────────

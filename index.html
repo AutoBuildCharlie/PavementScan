@@ -100,6 +100,16 @@
       <button class="lightbox-close" onclick="closeLightbox()">&times;</button>
       <img id="lightbox-img" src="" alt="">
       <div id="lightbox-label" class="lightbox-label"></div>
+      <div class="lightbox-rating">
+        <span class="lightbox-rating-label">Rating:</span>
+        <select id="lightbox-rating-select" onchange="lightboxSetRating(this.value)">
+          <option value="">— Not rated —</option>
+          <option value="level-1">LVL 1 — Good</option>
+          <option value="level-2">LVL 2 — Light cracks</option>
+          <option value="level-3">LVL 3 — Heavy cracks</option>
+          <option value="level-4">LVL 4 — Alligator</option>
+        </select>
+      </div>
       <div class="lightbox-nav">
         <button onclick="lightboxNav(-1)">&#8592;</button>
         <span id="lightbox-count"></span>
