@@ -818,7 +818,7 @@ Be honest. Weight toward the worst section. Do not guess — only rate what you 
           },
           { role: 'user', content: content }
         ],
-        max_tokens: 500
+        max_tokens: 1500
       })
     });
 
@@ -838,6 +838,7 @@ Be honest. Weight toward the worst section. Do not guess — only rate what you 
     const text = data.choices?.[0]?.message?.content || '';
     if (!text) {
       console.warn('AI returned empty response:', JSON.stringify(data));
+      if (data._geminiDebug) console.warn('Gemini debug:', JSON.stringify(data._geminiDebug));
       showToast('Scan failed — check console for details');
       return analyzeWithPlaceholder(street);
     }
