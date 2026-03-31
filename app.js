@@ -50,6 +50,10 @@ let API_KEY = '';
 // ─── OPENAI PROXY (for AI crack analysis) ──────────────────
 const AI_PROXY = 'https://cse-worker.aestheticcal22.workers.dev';
 
+// In-memory photo cache — stores base64 data URLs keyed by hdUrl
+// Not persisted to localStorage (avoids quota issues)
+const _photoCache = new Map();
+
 // ─── INIT ──────────────────────────────────────────────────
 function initMap() {
   API_KEY = getMapKey();
@@ -823,16 +827,19 @@ Be honest. Weight toward the worst section. Do not guess — only rate what you 
     });
 
     // Store scan photos before AI call so they're preserved even if AI fails
-    // Also store the fetched base64 so the lightbox can display them without hitting Google directly
+    // Cache base64 images in memory (not localStorage) so lightbox can display them
     street.photosScanned = validPairs.length;
-    street.scanPhotos = samplePoints.map((pt, i) => ({
-      url: getStreetViewUrl(pt.lat, pt.lng, pt.heading || 0),
-      hdUrl: getStreetViewUrlHD(pt.lat, pt.lng, pt.heading || 0),
-      dataUrl: images[i] || null,
-      label: pt.label,
-      lat: pt.lat,
-      lng: pt.lng
-    }));
+    street.scanPhotos = samplePoints.map((pt, i) => {
+      const hdUrl = getStreetViewUrlHD(pt.lat, pt.lng, pt.heading || 0);
+      if (images[i]) _photoCache.set(hdUrl, images[i]);
+      return {
+        url: getStreetViewUrl(pt.lat, pt.lng, pt.heading || 0),
+        hdUrl,
+        label: pt.label,
+        lat: pt.lat,
+        lng: pt.lng
+      };
+    });
 
     if (!res.ok) throw new Error(`AI proxy ${res.status}`);
     const data = await res.json();
@@ -1564,7 +1571,7 @@ function lightboxNav(dir) {
 
 function _renderLightbox() {
   const p = _lbPhotos[_lbIdx];
-  document.getElementById('lightbox-img').src = p.dataUrl || p.hdUrl || p.url;
+  document.getElementById('lightbox-img').src = _photoCache.get(p.hdUrl) || p.hdUrl || p.url;
   document.getElementById('lightbox-label').textContent = p.label;
   document.getElementById('lightbox-count').textContent = `${_lbIdx + 1} / ${_lbPhotos.length}`;
 }
