@@ -125,6 +125,7 @@ function createProject(name) {
     name: name,
     includeWideCracks: false, // default: skip 1.25"+ cracks
     aiEnabled: true, // AI analysis + photo capture on by default
+    scanModel: 'gpt-4o', // AI model used for scanning
     streets: [],
     createdAt: new Date().toISOString()
   };
@@ -207,6 +208,14 @@ function renderProjectSelector() {
         <span class="toggle-label">AI Analysis</span>
         <span class="toggle-value ${activeProject.aiEnabled !== false ? 'toggle-on' : 'toggle-off'}">${activeProject.aiEnabled !== false ? 'ON' : 'OFF'}</span>
       </div>
+      <div class="toggle-pill model-pill" title="AI model used for scanning">
+        <span class="toggle-label">Scan Model</span>
+        <select class="model-select" onchange="setScanModel(this.value)" onclick="event.stopPropagation()">
+          <option value="gpt-4o" ${(activeProject.scanModel || 'gpt-4o') === 'gpt-4o' ? 'selected' : ''}>GPT-4o</option>
+          <option value="gemini-2.0-flash" ${activeProject.scanModel === 'gemini-2.0-flash' ? 'selected' : ''}>Gemini Flash</option>
+          <option value="claude-opus-4-6" ${activeProject.scanModel === 'claude-opus-4-6' ? 'selected' : ''}>Claude Opus</option>
+        </select>
+      </div>
     </div>
   `;
 }
@@ -226,6 +235,13 @@ function toggleAI() {
   // Re-render detail panel if a street is selected
   if (activeStreetId) selectStreet(activeStreetId);
   showToast(activeProject.aiEnabled ? 'AI analysis & photos ON' : 'AI analysis & photos OFF — manual mode');
+}
+
+function setScanModel(model) {
+  activeProject.scanModel = model;
+  saveProjects();
+  const labels = { 'gpt-4o': 'GPT-4o', 'gemini-2.0-flash': 'Gemini Flash', 'claude-opus-4-6': 'Claude Opus' };
+  showToast(`Scan model: ${labels[model] || model}`);
 }
 
 function addNewProject() {
@@ -727,11 +743,13 @@ async function analyzeStreetView(street) {
       ]))
     ];
 
+    const scanModel = activeProject?.scanModel || 'gpt-4o';
     const res = await fetch(AI_PROXY, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        model: 'gpt-4o',
+        model: scanModel,
+        provider: getProviderForModel(scanModel),
         messages: [
           {
             role: 'system',
@@ -822,6 +840,12 @@ function extractRating(text) {
   if (lower.includes('fair')) return 'level-2';
   if (lower.includes('good')) return 'level-1';
   return 'level-2';
+}
+
+function getProviderForModel(model) {
+  if (model?.startsWith('gemini')) return 'gemini';
+  if (model?.startsWith('claude')) return 'claude';
+  return 'openai';
 }
 
 function extractWeedAlert(text) {
@@ -2301,11 +2325,13 @@ async function generateProjectReport() {
   let aiSummary = '';
   if (AI_PROXY) {
     try {
+      const reportModel = activeProject?.scanModel || 'gpt-4o';
       const res = await fetch(AI_PROXY, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          model: 'gpt-4o',
+          model: reportModel,
+          provider: getProviderForModel(reportModel),
           messages: [
             {
               role: 'system',

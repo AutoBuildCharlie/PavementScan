@@ -176,6 +176,19 @@ body {
 .wc-off { background: rgba(239,68,68,0.2); color: #ef4444; }
 .toggle-on { background: rgba(34,197,94,0.2); color: #22c55e; }
 .toggle-off { background: rgba(239,68,68,0.2); color: #ef4444; }
+.model-pill { cursor: default; }
+.model-pill:hover { border-color: var(--accent); }
+.model-select {
+  background: rgba(245,166,35,0.15);
+  border: none;
+  color: var(--accent);
+  font-size: 9px;
+  font-weight: 700;
+  padding: 1px 4px;
+  border-radius: 3px;
+  cursor: pointer;
+  outline: none;
+}
 
 .panel-header {
   display: flex;
