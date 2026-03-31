@@ -20,9 +20,10 @@
    Street object shape:
    {
      id, name, lat, lng, length, width, sqft,
-     rating, roadType, notes, analysis, adminNotes, weedAlert, svImage,
+     rating, roadType, notes, analysis, adminNotes, weedAlert, weedNotes, svImage,
      path: [{ lat, lng }, ...],
      photos: [{ id, dataUrl, lat, lng, address, note, takenAt }],
+     scanPhotos: [{ url, hdUrl, label, lat, lng }],
      scannedAt, createdAt
    }
 ──────────────────────────────────────────────────────────── */
@@ -551,6 +552,7 @@ async function saveStreet() {
     street.analysis = analysis.text;
     street.rating = analysis.rating;
     street.weedAlert = analysis.weedAlert || false;
+    street.weedNotes = analysis.weedNotes || '';
     street.scannedAt = new Date().toISOString();
   }
 
@@ -774,10 +776,13 @@ Be honest. Weight toward the worst section. Do not guess — only rate what you 
     street.scanPhotos = samplePoints.map(pt => ({
       url: getStreetViewUrl(pt.lat, pt.lng, pt.heading || 0),
       hdUrl: getStreetViewUrlHD(pt.lat, pt.lng, pt.heading || 0),
-      label: pt.label
+      label: pt.label,
+      lat: pt.lat,
+      lng: pt.lng
     }));
 
-    return { text, rating, weedAlert };
+    const weedNotes = extractWeedNotes(text);
+    return { text, rating, weedAlert, weedNotes };
   } catch (e) {
     console.error('AI analysis error:', e);
     return analyzeWithPlaceholder(street);
@@ -824,6 +829,24 @@ function extractWeedAlert(text) {
   if (lower.includes('weed control needed')) return true;
   if (lower.includes('vegetation growing') || lower.includes('weeds growing') || lower.includes('grass growing')) return true;
   return false;
+}
+
+function extractWeedNotes(text) {
+  const match = text.match(/4\.\s*WEED\/GRASS CONTROL[:\s]+([\s\S]*?)(?=5\.\s*WHAT I CAN'T SEE|6\.\s*Level:|$)/i);
+  if (match) return match[1].trim();
+  const match2 = text.match(/WEED\/GRASS CONTROL[:\s]+([\s\S]*?)(?=WHAT I CAN'T SEE|Level:|$)/i);
+  return match2 ? match2[1].trim() : '';
+}
+
+function extractWeedPhotoIndices(weedText) {
+  const indices = [];
+  const re = /Photo\s+(\d+)/gi;
+  let m;
+  while ((m = re.exec(weedText)) !== null) {
+    const idx = parseInt(m[1]) - 1;
+    if (!indices.includes(idx)) indices.push(idx);
+  }
+  return indices;
 }
 
 function ratingLabel(rating) {
@@ -1001,7 +1024,18 @@ function selectStreet(id) {
       ${(() => { const dir = getStreetDirection(street); return dir ? `<span style="display:inline-block;background:var(--accent);color:#000;font-size:11px;font-weight:700;padding:2px 8px;border-radius:4px;margin-bottom:6px">${dir}</span>` : ''; })()}
       ${street.city ? `<div class="detail-jurisdiction">${escHtml(street.city)}${street.county ? ' — ' + escHtml(street.county) : ''}${street.state ? ', ' + escHtml(street.state) : ''}</div>` : ''}
       ${street.crossesBoundary ? `<div class="detail-boundary-warn">⚠ ${escHtml(street.boundaryNote)}</div>` : ''}
-      ${street.weedAlert ? `<div class="detail-weed-warn">🌿 Weed/grass control may be needed on this street</div>` : ''}
+      ${street.weedAlert ? `<div class="detail-weed-warn">
+        🌿 Weed/grass control may be needed on this street
+        ${street.weedNotes ? `<div class="weed-notes">${escHtml(street.weedNotes)}</div>` : ''}
+        ${(street.weedNotes && street.scanPhotos?.length) ? (() => {
+          const indices = extractWeedPhotoIndices(street.weedNotes);
+          const photos = indices.map(i => street.scanPhotos[i]).filter(p => p?.lat);
+          if (!photos.length) return '';
+          return `<div class="weed-locations">${photos.map(p =>
+            `<button class="weed-jump-btn" onclick="map.panTo({lat:${p.lat},lng:${p.lng}});map.setZoom(19)" title="Jump to ${escHtml(p.label)}">📍 ${escHtml(p.label)}</button>`
+          ).join('')}</div>`;
+        })() : ''}
+      </div>` : ''}
       <div class="detail-address">Added ${formatDate(street.createdAt)}</div>
     </div>
 
@@ -1255,6 +1289,7 @@ function saveAnalysis(id) {
   street.analysis = text;
   street.rating = extractRating(text);
   street.weedAlert = extractWeedAlert(text);
+  street.weedNotes = extractWeedNotes(text);
   saveStreets();
   renderStreetList();
   updateStats();
@@ -1307,6 +1342,7 @@ async function rescanStreet(id) {
   street.analysis = analysis.text;
   street.rating = analysis.rating;
   street.weedAlert = analysis.weedAlert || false;
+  street.weedNotes = analysis.weedNotes || '';
   street.scannedAt = new Date().toISOString();
 
   saveStreets();
