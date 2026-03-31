@@ -39,6 +39,7 @@ let highlightMode = null;
 let highlightStreetId = null;
 let highlightMarkers = []; // temp markers while drawing
 let polylines = []; // drawn street lines + markers
+let _animInterval = null; // animation loop for selected street
 let tempPolyline = null; // live polyline while drawing
 let tempPath = []; // points being drawn
 const PROJECTS_KEY = 'cse_projects';
@@ -2181,6 +2182,7 @@ function clearTempMarkers() {
 }
 
 function drawAllHighlights() {
+  if (_animInterval) { clearInterval(_animInterval); _animInterval = null; }
   polylines.forEach(p => removeFromMap(p));
   polylines = [];
 
@@ -2301,6 +2303,32 @@ function drawAllHighlights() {
       polylines.push(endLabel);
     }
   });
+
+  // Animated moving dash overlay on the selected street
+  if (activeStreetId) {
+    const active = streets.find(s => s.id === activeStreetId);
+    if (active?.path?.length > 1) {
+      const dashSymbol = { path: 'M 0,-1 0,1', strokeOpacity: 1, scale: 5 };
+      const animLine = new google.maps.Polyline({
+        path: active.path,
+        geodesic: true,
+        strokeColor: '#ffffff',
+        strokeOpacity: 0,
+        strokeWeight: 4,
+        icons: [{ icon: dashSymbol, offset: '0%', repeat: '24px' }],
+        map: map,
+        zIndex: 20
+      });
+      animLine.addListener('click', () => selectStreet(active.id));
+      polylines.push(animLine);
+
+      let offset = 0;
+      _animInterval = setInterval(() => {
+        offset = (offset + 2) % 200;
+        animLine.set('icons', [{ icon: dashSymbol, offset: (offset / 2) + '%', repeat: '24px' }]);
+      }, 30);
+    }
+  }
 }
 
 let _snapping = false;
