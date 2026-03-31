@@ -854,27 +854,17 @@ Be honest. Weight toward the worst section. Do not guess — only rate what you 
   }
 }
 
-// Fetch an image URL and return as base64 data URL
-function imageUrlToBase64(url) {
-  return new Promise((resolve) => {
-    const img = new Image();
-    img.crossOrigin = 'anonymous';
-    const timeout = setTimeout(() => { img.src = ''; resolve(null); }, 15000);
-    img.onload = () => {
-      clearTimeout(timeout);
-      const canvas = document.createElement('canvas');
-      canvas.width = img.width;
-      canvas.height = img.height;
-      canvas.getContext('2d').drawImage(img, 0, 0);
-      try {
-        resolve(canvas.toDataURL('image/jpeg', 0.8));
-      } catch (e) {
-        resolve(null);
-      }
-    };
-    img.onerror = () => { clearTimeout(timeout); resolve(null); };
-    img.src = url;
-  });
+// Fetch a Street View image via the Cloudflare Worker proxy (avoids browser Referer 403s)
+async function imageUrlToBase64(url) {
+  try {
+    const res = await fetch(`${AI_PROXY}/image?url=${encodeURIComponent(url)}`);
+    if (!res.ok) return null;
+    const data = await res.json();
+    return data.dataUrl || null;
+  } catch (e) {
+    console.warn('imageUrlToBase64 error:', e);
+    return null;
+  }
 }
 
 function extractRating(text) {
