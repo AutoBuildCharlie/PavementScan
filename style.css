@@ -887,6 +887,33 @@ body {
 .scan-photo-rated-level-2 { border-color: rgba(234,179,8,0.5); }
 .scan-photo-rated-level-3 { border-color: rgba(249,115,22,0.5); }
 .scan-photo-rated-level-4 { border-color: rgba(239,68,68,0.5); }
+.scan-photo-delete {
+  flex-shrink: 0;
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  font-size: 15px;
+  line-height: 1;
+  cursor: pointer;
+  padding: 0 2px;
+  opacity: 0;
+  transition: opacity 0.15s, color 0.15s;
+}
+.scan-photo-card:hover .scan-photo-delete { opacity: 1; }
+.scan-photo-delete:hover { color: #ef4444; }
+.btn-clear-scan-photos {
+  font-size: 10px;
+  font-weight: 500;
+  background: none;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  color: var(--text-muted);
+  padding: 2px 7px;
+  cursor: pointer;
+  margin-left: 8px;
+  vertical-align: middle;
+}
+.btn-clear-scan-photos:hover { border-color: #ef4444; color: #ef4444; }
 .scan-photo-icon { font-size: 14px; flex-shrink: 0; }
 .scan-photo-label { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .photo-rating-select {

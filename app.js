@@ -1186,10 +1186,13 @@ function selectStreet(id) {
 
     ${(street.scanPhotos && street.scanPhotos.length > 0) ? `
     <div class="detail-section">
-      <h4>Photos AI Analyzed (${street.scanPhotos.length})</h4>
+      <h4>Photos AI Analyzed (${street.scanPhotos.length})
+        <button class="btn-clear-scan-photos" onclick="clearScanPhotos('${street.id}')" title="Delete all AI scan photos">Clear All</button>
+      </h4>
       <div class="scan-photo-grid">
         ${street.scanPhotos.map((p, i) => `
           <div class="scan-photo-card scan-photo-rated-${p.rating || 'none'}" onclick="openLightbox(streets.find(s=>s.id==='${street.id}').scanPhotos, ${i}, '${street.id}')" title="Click to view photo">
+            <button class="scan-photo-delete" onclick="event.stopPropagation();deleteScanPhoto('${street.id}', ${i})" title="Delete">&times;</button>
             <span class="scan-photo-icon">&#128247;</span>
             <span class="scan-photo-label">${escHtml(p.label)}</span>
             <select class="photo-rating-select photo-rating-${p.rating || ''}" onclick="event.stopPropagation()" onchange="setPhotoRating('${street.id}', ${i}, this.value)">
@@ -1812,6 +1815,25 @@ function deletePhoto(streetId, photoId) {
   placePhotoMarkers();
   selectStreet(streetId);
   showToast('Photo removed');
+}
+
+function deleteScanPhoto(streetId, index) {
+  const street = streets.find(s => s.id === streetId);
+  if (!street?.scanPhotos) return;
+  street.scanPhotos.splice(index, 1);
+  recalcRatingFromPhotos(streetId);
+  saveStreets();
+  selectStreet(streetId);
+  showToast('Scan photo removed');
+}
+
+function clearScanPhotos(streetId) {
+  const street = streets.find(s => s.id === streetId);
+  if (!street) return;
+  street.scanPhotos = [];
+  saveStreets();
+  selectStreet(streetId);
+  showToast('All scan photos cleared');
 }
 
 // ─── PHOTO MARKERS ON MAP ──────────────────────────────────
