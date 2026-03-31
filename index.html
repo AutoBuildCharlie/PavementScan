@@ -96,8 +96,38 @@
       <div id="map"></div>
       <div id="streetview-panel" class="hidden">
         <div id="streetview-pano"></div>
-        <button id="btn-close-sv" class="btn-close-sv" onclick="closeStreetViewPanel()">Back to Map</button>
+        <div class="sv-toolbar">
+          <button id="btn-close-sv" class="btn-close-sv" onclick="closeStreetViewPanel()">&#8592; Back to Map</button>
+          <button class="btn-sv-snap" onclick="snapStreetView()" title="Snap this view as a photo">&#128247; Snap Photo</button>
+        </div>
       </div>
+
+  <!-- ─── SV SNAP MODAL ────────────────────────────────────── -->
+  <div id="snap-overlay" class="modal-overlay hidden" onclick="closeSnapModal(event)">
+    <div class="modal snap-review-modal" onclick="event.stopPropagation()">
+      <button class="btn-close" onclick="closeSnapModal()" style="position:absolute;top:10px;right:14px;">&times;</button>
+      <h3>Snap Photo</h3>
+      <img id="snap-preview" src="" alt="Snap preview" class="snap-preview-img">
+      <div class="form-group" style="margin-top:12px">
+        <label>Rating</label>
+        <select id="snap-rating">
+          <option value="">— No rating —</option>
+          <option value="level-1">LVL 1 — Good condition</option>
+          <option value="level-2">LVL 2 — Light cracks</option>
+          <option value="level-3">LVL 3 — Heavy cracks</option>
+          <option value="level-4">LVL 4 — Alligator cracking</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Note (optional)</label>
+        <textarea id="snap-note" rows="2" placeholder="e.g. Deep crack at driveway approach"></textarea>
+      </div>
+      <div class="modal-actions">
+        <button class="btn-secondary" onclick="closeSnapModal()">Cancel</button>
+        <button class="btn-primary" onclick="saveSnap()">Save to Street</button>
+      </div>
+    </div>
+  </div>
     </section>
 
     <!-- RIGHT PANEL — Street Detail -->

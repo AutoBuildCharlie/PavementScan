@@ -1902,6 +1902,74 @@ function openStreetViewAt(lat, lng) {
   }
 }
 
+// ─── STREET VIEW SNAP ──────────────────────────────────────
+let _snapData = null; // { dataUrl, lat, lng, heading }
+
+async function snapStreetView() {
+  if (!streetViewPano) return;
+  const pos = streetViewPano.getPosition();
+  const pov = streetViewPano.getPov();
+  const lat = pos.lat(), lng = pos.lng();
+  const heading = Math.round(pov.heading || 0);
+  const pitch = Math.round(pov.pitch || -5);
+
+  showToast('Fetching snap...');
+  const url = `${SV_BASE}?size=640x400&location=${lat},${lng}&heading=${heading}&pitch=${pitch}&fov=80&key=${API_KEY}`;
+  const dataUrl = await imageUrlToBase64(url);
+  if (!dataUrl) { showToast('Could not fetch Street View image'); return; }
+
+  _snapData = { dataUrl, lat, lng, heading };
+  document.getElementById('snap-preview').src = dataUrl;
+  document.getElementById('snap-rating').value = '';
+  document.getElementById('snap-note').value = '';
+  document.getElementById('snap-overlay').classList.remove('hidden');
+}
+
+function closeSnapModal(e) {
+  if (e && e.target !== document.getElementById('snap-overlay')) return;
+  document.getElementById('snap-overlay').classList.add('hidden');
+  _snapData = null;
+}
+
+function saveSnap() {
+  if (!_snapData || !activeStreetId) return;
+  const street = streets.find(s => s.id === activeStreetId);
+  if (!street) return;
+
+  const rating = document.getElementById('snap-rating').value;
+  const note = document.getElementById('snap-note').value.trim();
+
+  if (!street.photos) street.photos = [];
+  street.photos.push({
+    id: crypto.randomUUID?.() || Date.now().toString(36),
+    dataUrl: _snapData.dataUrl,
+    lat: _snapData.lat,
+    lng: _snapData.lng,
+    address: '',
+    note: note || '',
+    rating: rating || null,
+    source: 'streetview',
+    takenAt: new Date().toISOString()
+  });
+
+  // If a rating was set, factor it into the street rating
+  if (rating) {
+    const manualRatings = street.photos.filter(p => p.rating);
+    const counts = {};
+    manualRatings.forEach(p => { counts[p.rating] = (counts[p.rating] || 0) + 1; });
+    const best = Object.entries(counts).sort((a, b) => b[1] - a[1])[0];
+    if (best) { street.rating = best[0]; }
+  }
+
+  saveStreets();
+  placePhotoMarkers();
+  placeAllMarkers();
+  selectStreet(activeStreetId);
+  document.getElementById('snap-overlay').classList.add('hidden');
+  _snapData = null;
+  showToast('Photo saved to street');
+}
+
 function closeStreetViewPanel() {
   document.getElementById('streetview-panel').classList.add('hidden');
   document.getElementById('detail-panel').classList.add('hidden');
