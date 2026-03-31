@@ -2287,6 +2287,14 @@ function closeLightbox() {
   document.getElementById('photo-lightbox').classList.add('hidden');
 }
 
+function lightboxRetakePhoto() {
+  if (_lbPhotoArray !== 'scanPhotos') return;
+  const streetId = _lbGetStreetId();
+  if (!streetId) return;
+  closeLightbox();
+  retakeScanPhoto(streetId, _lbIdx);
+}
+
 function lightboxNav(dir) {
   if (_lbPhotos.length === 0) return;
   _lbIdx = (_lbIdx + dir + _lbPhotos.length) % _lbPhotos.length;
@@ -2323,6 +2331,10 @@ async function _renderLightbox() {
 
   // Show delete button for on-site and R&R photos (they have id)
   if (delBtn) delBtn.classList.toggle('hidden', !p.id);
+
+  // Show retake button only for scan photos that have a location
+  const retakeBtn = document.getElementById('lightbox-retake');
+  if (retakeBtn) retakeBtn.classList.toggle('hidden', !(_lbPhotoArray === 'scanPhotos' && p.lat && p.lng));
 
   // On-site photos have dataUrl stored directly — no proxy needed
   if (p.dataUrl) {

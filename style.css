@@ -1276,8 +1276,21 @@ body {
 }
 .lightbox-note-input::placeholder { color: var(--text-dim); }
 .lightbox-note-input:focus { outline: none; border-color: var(--accent); }
-.lightbox-delete {
+.lightbox-retake {
   margin-top: 12px;
+  background: none;
+  border: 1px solid rgba(99,102,241,0.5);
+  color: #818cf8;
+  border-radius: 6px;
+  padding: 6px 16px;
+  font-size: 12px;
+  cursor: pointer;
+  transition: background 0.15s;
+  width: 100%;
+}
+.lightbox-retake:hover { background: rgba(99,102,241,0.12); }
+.lightbox-delete {
+  margin-top: 8px;
   background: none;
   border: 1px solid rgba(239,68,68,0.4);
   color: #ef4444;
