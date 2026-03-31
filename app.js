@@ -379,6 +379,8 @@ function migrateOldData() {
         s.rating = ratingMap[s.rating];
         changed = true;
       }
+      // Migrate streets missing rrPhotos array
+      if (!s.rrPhotos) { s.rrPhotos = []; changed = true; }
     });
     // Migrate projects missing type field — default to crack-seal
     if (!p.type) { p.type = 'crack-seal'; changed = true; }
@@ -1388,6 +1390,31 @@ function selectStreet(id) {
     </div>
     ` : ''}
 
+    ${(activeProject.detectRR || (street.rrPhotos && street.rrPhotos.length > 0)) ? `
+    <div class="detail-section" style="border-color:rgba(239,68,68,0.3)">
+      <h4 style="color:#ef4444">&#128247; R&amp;R Field Photos (${(street.rrPhotos || []).length})</h4>
+      <button class="btn-photo" style="background:rgba(239,68,68,0.15);border-color:rgba(239,68,68,0.4);color:#ef4444" onclick="openRRPhotoCapture('${street.id}')">Take R&amp;R Photo</button>
+      ${(street.rrPhotos || []).length > 0 ? `
+        <div class="photo-grid" style="margin-top:8px">
+          ${(street.rrPhotos || []).map((p, i) => `
+            <div class="photo-card" onclick="openLightbox(streets.find(s=>s.id==='${street.id}').rrPhotos, ${i}, '${street.id}')" style="cursor:pointer;border-color:rgba(239,68,68,0.3)" title="Click to view">
+              <img src="${p.dataUrl}" alt="R&R photo" class="photo-thumb">
+              <div class="photo-info">
+                <small style="color:#ef4444;font-weight:600">R&amp;R</small>
+                <small>
+                  ${p.address ? escHtml(p.address.split(',')[0]) : 'GPS tagged'}
+                  ${p.lat ? `<button class="btn-photo-jump" onclick="event.stopPropagation();map.panTo({lat:${p.lat},lng:${p.lng}});map.setZoom(19)" title="Jump to location on map">&#128205;</button>` : ''}
+                </small>
+                <small>${new Date(p.takenAt).toLocaleDateString()}</small>
+              </div>
+              <button class="photo-delete" onclick="event.stopPropagation();deleteRRPhoto('${street.id}','${p.id}')" title="Delete">&times;</button>
+            </div>
+          `).join('')}
+        </div>
+      ` : '<p class="text-dim" style="margin-top:6px">No R&R photos yet</p>'}
+    </div>
+    ` : ''}
+
     ${(street.scanPhotos && street.scanPhotos.length > 0) ? `
     <div class="detail-section">
       <h4>Photos AI Analyzed (${street.scanPhotos.length})
@@ -2030,6 +2057,68 @@ function deletePhoto(streetId, photoId) {
   showToast('Photo removed');
 }
 
+// ─── R&R PHOTO CAPTURE ─────────────────────────────────────
+function openRRPhotoCapture(streetId) {
+  const input = document.createElement('input');
+  input.type = 'file';
+  input.accept = 'image/*';
+  input.capture = 'environment';
+  input.onchange = (e) => handleRRPhotoCapture(e, streetId);
+  input.click();
+}
+
+async function handleRRPhotoCapture(e, streetId) {
+  const file = e.target.files[0];
+  if (!file) return;
+
+  const street = streets.find(s => s.id === streetId);
+  if (!street) return;
+  if (!street.rrPhotos) street.rrPhotos = [];
+
+  showToast('Processing R&R photo...');
+
+  const dataUrl = await compressPhoto(file, 800, 0.7);
+  const photoLocation = await getPhotoGPS();
+
+  const photo = {
+    id: crypto.randomUUID?.() || Date.now().toString(36),
+    dataUrl: dataUrl,
+    lat: photoLocation?.lat || street.lat,
+    lng: photoLocation?.lng || street.lng,
+    address: '',
+    note: '',
+    takenAt: new Date().toISOString()
+  };
+
+  if (photo.lat && photo.lng) {
+    try {
+      const geocoder = new google.maps.Geocoder();
+      const result = await new Promise((resolve) => {
+        geocoder.geocode({ location: { lat: photo.lat, lng: photo.lng } }, (results, status) => {
+          resolve(status === 'OK' && results.length > 0 ? results[0].formatted_address : '');
+        });
+      });
+      photo.address = result;
+    } catch (e) { /* skip */ }
+  }
+
+  street.rrPhotos.push(photo);
+  saveStreets();
+  placePhotoMarkers();
+  selectStreet(streetId);
+  showToast('R&R photo added with GPS location');
+}
+
+function deleteRRPhoto(streetId, photoId) {
+  const street = streets.find(s => s.id === streetId);
+  if (!street || !street.rrPhotos) return;
+  street.rrPhotos = street.rrPhotos.filter(p => p.id !== photoId);
+  saveStreets();
+  placePhotoMarkers();
+  selectStreet(streetId);
+  showToast('R&R photo removed');
+}
+
 function deleteScanPhoto(streetId, index) {
   const street = streets.find(s => s.id === streetId);
   if (!street?.scanPhotos) return;
@@ -2072,6 +2161,28 @@ function placePhotoMarkers() {
       const photoIndex = street.photos.indexOf(photo);
       const openInfo = () => {
         openLightbox(street.photos, photoIndex, street.id);
+      };
+      marker.addEventListener('gmp-click', openInfo);
+      dotEl.addEventListener('click', openInfo);
+      photoMarkers.push(marker);
+    });
+
+    // R&R photos — red pins
+    if (!street.rrPhotos) return;
+    street.rrPhotos.forEach(photo => {
+      if (!photo.lat || !photo.lng) return;
+      const dotEl = makeDotContent('#ef4444', 14, '#fff');
+      const marker = makeMarker({
+        position: { lat: photo.lat, lng: photo.lng },
+        map: map,
+        title: `R&R Photo — ${photo.address || 'On-site'}`,
+        content: dotEl,
+        gmpClickable: true
+      });
+
+      const photoIndex = street.rrPhotos.indexOf(photo);
+      const openInfo = () => {
+        openLightbox(street.rrPhotos, photoIndex, street.id);
       };
       marker.addEventListener('gmp-click', openInfo);
       dotEl.addEventListener('click', openInfo);
@@ -2934,11 +3045,12 @@ async function generateProjectReport() {
       <div class="report-label">Street Breakdown</div>
       ${streets.map(s => `
         <div class="report-street-row">
-          <span>${escHtml(s.name?.split(',')[0] || 'Unknown')}${s.weedAlert ? ' 🌿' : ''}${s.ravelingAlert ? ' ⚠' : ''}</span>
+          <span>${escHtml(s.name?.split(',')[0] || 'Unknown')}${s.weedAlert ? ' 🌿' : ''}${s.ravelingAlert ? ' ⚠' : ''}${s.rrAlert ? ' 🔴' : ''}</span>
           <span>${formatNumber(s.sqft || 0)} sq ft · ${formatNumber(Math.round((s.sqft || 0) / 9))} SY</span>
           <span class="rating-badge rating-${s.rating}" title="${ratingDescription(s.rating)}">${ratingLabel(s.rating)}</span>
         </div>
         ${s.rating && s.rating !== 'pending' ? `<div style="font-size:11px;color:${getTreatment(s.rating, activeProject.type).color};padding:0 0 4px 4px">${getTreatment(s.rating, activeProject.type).label}</div>` : ''}
+        ${s.rrPhotos && s.rrPhotos.length > 0 ? `<div style="font-size:11px;color:#ef4444;padding:0 0 4px 4px">📷 ${s.rrPhotos.length} R&amp;R field photo${s.rrPhotos.length > 1 ? 's' : ''}</div>` : ''}
         ${s.adminNotes ? `<div class="report-admin-note">📝 ${escHtml(s.adminNotes)}</div>` : ''}
       `).join('')}
     </div>
