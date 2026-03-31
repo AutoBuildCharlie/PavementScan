@@ -183,6 +183,8 @@ function createProject(name, type = 'crack-seal') {
     aiEnabled: true, // AI analysis + photo capture on by default
     scanModel: 'gpt-4o', // AI model used for scanning
     aiNotes: '', // custom instructions injected into every AI scan prompt
+    calibrationLog: [], // corrections Cal made to AI ratings (max 50)
+    calibrationRules: [], // approved rules from Refine AI — injected into prompts
     streets: [],
     createdAt: new Date().toISOString()
   };
@@ -299,6 +301,19 @@ function renderProjectSelector() {
       <span class="ai-notes-label">AI Instructions</span>
       <textarea class="ai-notes-input" placeholder="e.g. Older neighborhood — focus on longitudinal cracking near gutters" onchange="saveAiNotes(this.value)">${escHtml(activeProject.aiNotes || '')}</textarea>
     </div>
+    <div class="calib-bar">
+      <span class="calib-bar-label">
+        ${activeProject.calibrationRules?.length > 0
+          ? `&#10003; ${activeProject.calibrationRules.length} calibration rule${activeProject.calibrationRules.length > 1 ? 's' : ''} active`
+          : activeProject.calibrationLog?.length > 0
+            ? `${activeProject.calibrationLog.length} correction${activeProject.calibrationLog.length > 1 ? 's' : ''} logged`
+            : 'Calibration — no corrections yet'}
+      </span>
+      <div class="calib-bar-actions">
+        ${activeProject.calibrationLog?.length > 0 ? `<button class="btn-calib-refine" onclick="openRefineAIModal()">Refine AI</button>` : ''}
+        ${activeProject.calibrationRules?.length > 0 ? `<button class="btn-calib-clear" onclick="clearCalibrationRules()">Clear</button>` : ''}
+      </div>
+    </div>
   `;
 }
 
@@ -401,6 +416,8 @@ function migrateOldData() {
     if (p.aiEnabled === undefined) { p.aiEnabled = true; changed = true; }
     if (!p.scanModel) { p.scanModel = 'gpt-4o'; changed = true; }
     if (p.aiNotes === undefined) { p.aiNotes = ''; changed = true; }
+    if (!p.calibrationLog) { p.calibrationLog = []; changed = true; }
+    if (!p.calibrationRules) { p.calibrationRules = []; changed = true; }
   });
   if (changed) {
     streets = activeProject.streets;
@@ -732,6 +749,7 @@ async function saveStreet() {
     const analysis = await analyzeStreetView(street);
     street.analysis = analysis.text;
     street.rating = analysis.rating;
+    street.aiRating = analysis.rating; // store AI's original rating for calibration tracking
     street.weedAlert = analysis.weedAlert || false;
     street.weedNotes = analysis.weedNotes || '';
     street.ravelingAlert = analysis.ravelingAlert || false;
@@ -1131,7 +1149,7 @@ ${8 + sectionOffset}. PHOTO RATINGS
 - Be honest. Only rate what you can actually see.
 - When in doubt, weight toward the worst section of the street.
 - Do not guess — if you cannot see something clearly, say so in "What I Can't See."
-${detectRR && isSlurry ? '- R&R areas must be patched before slurry seal can be applied to those sections.' : ''}${activeProject?.aiNotes?.trim() ? '\n\n━━━ CUSTOM INSTRUCTIONS ━━━\n' + activeProject.aiNotes.trim() : ''}`;
+${detectRR && isSlurry ? '- R&R areas must be patched before slurry seal can be applied to those sections.' : ''}${activeProject?.aiNotes?.trim() ? '\n\n━━━ CUSTOM INSTRUCTIONS ━━━\n' + activeProject.aiNotes.trim() : ''}${activeProject?.calibrationRules?.length > 0 ? '\n\n━━━ CALIBRATION RULES (learned from past corrections) ━━━\n' + activeProject.calibrationRules.map((r, i) => `${i + 1}. ${r}`).join('\n') : ''}`;
 })()
           },
           { role: 'user', content: content }
@@ -1544,6 +1562,9 @@ function selectStreet(id) {
           <option value="level-4" ${street.rating === 'level-4' ? 'selected' : ''}>LVL 4</option>
         </select>
       </div>
+    </div>
+    <div id="calibration-reason-prompt" class="hidden"></div>
+    <div class="detail-stats">
       ${street.rating && street.rating !== 'pending' ? `
       <div class="detail-stat">
         <div class="detail-stat-label">Treatment</div>
@@ -1793,6 +1814,12 @@ function closeDetailPanel() {
 function setRating(id, rating) {
   const street = streets.find(s => s.id === id);
   if (!street) return;
+
+  // Detect calibration correction — only log if AI had rated this street differently
+  if (street.aiRating && street.aiRating !== rating) {
+    logCalibrationCorrection(street, street.aiRating, rating);
+  }
+
   street.rating = rating;
   saveStreets();
   updateStats();
@@ -1800,6 +1827,152 @@ function setRating(id, rating) {
   lastDrawnActiveId = null; // force highlight redraw
   selectStreet(id);
   showToast(`Rating set to ${ratingLabel(rating)}`);
+}
+
+// ─── CALIBRATION LEARNING ─────────────────────────────────
+let _pendingCorrection = null; // last logged correction waiting for a reason
+
+function logCalibrationCorrection(street, aiRating, calRating) {
+  if (!activeProject.calibrationLog) activeProject.calibrationLog = [];
+  const entry = {
+    streetId: street.id,
+    streetName: street.name,
+    aiRating,
+    calRating,
+    reason: '',
+    timestamp: new Date().toISOString()
+  };
+  activeProject.calibrationLog.push(entry);
+  // Cap at 50 entries — remove oldest
+  if (activeProject.calibrationLog.length > 50) activeProject.calibrationLog.shift();
+  saveProjects();
+  _pendingCorrection = entry;
+
+  // Show reason prompt after detail panel re-renders (slight delay)
+  setTimeout(showReasonPrompt, 300);
+}
+
+function showReasonPrompt() {
+  if (!_pendingCorrection) return;
+  const container = document.getElementById('calibration-reason-prompt');
+  if (!container) return;
+  const { aiRating, calRating } = _pendingCorrection;
+  container.innerHTML = `
+    <div class="calib-reason-box" id="calib-reason-box">
+      <span class="calib-reason-label">AI said ${ratingLabel(aiRating)} → you changed to ${ratingLabel(calRating)}</span>
+      <textarea class="calib-reason-input" id="calib-reason-input" placeholder="Why? (optional — helps AI learn your standard)" rows="2"></textarea>
+      <div class="calib-reason-actions">
+        <button class="btn-primary" style="font-size:11px;padding:5px 12px" onclick="saveCalibrationReason()">Save Reason</button>
+        <button class="btn-secondary" style="font-size:11px;padding:5px 12px" onclick="dismissReasonPrompt()">Skip</button>
+      </div>
+    </div>
+  `;
+  container.classList.remove('hidden');
+
+  // Auto-dismiss after 12 seconds if ignored
+  setTimeout(() => dismissReasonPrompt(), 12000);
+}
+
+function dismissReasonPrompt() {
+  _pendingCorrection = null;
+  const container = document.getElementById('calibration-reason-prompt');
+  if (container) { container.innerHTML = ''; container.classList.add('hidden'); }
+}
+
+function saveCalibrationReason() {
+  const input = document.getElementById('calib-reason-input');
+  const reason = input ? input.value.trim() : '';
+  if (_pendingCorrection && reason) {
+    _pendingCorrection.reason = reason;
+    saveProjects();
+  }
+  dismissReasonPrompt();
+  if (reason) showToast('Reason saved');
+}
+
+async function openRefineAIModal() {
+  const log = activeProject.calibrationLog || [];
+  if (log.length === 0) { showToast('No corrections logged yet'); return; }
+
+  document.getElementById('refine-ai-overlay').classList.remove('hidden');
+  document.getElementById('refine-ai-loading').classList.remove('hidden');
+  document.getElementById('refine-ai-rules').classList.add('hidden');
+
+  try {
+    const summary = log.map((e, i) =>
+      `${i + 1}. Street: ${e.streetName} — AI rated ${ratingLabel(e.aiRating)}, Cal changed to ${ratingLabel(e.calRating)}${e.reason ? ` — Reason: "${e.reason}"` : ''}`
+    ).join('\n');
+
+    const res = await fetch(AI_PROXY, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      signal: AbortSignal.timeout(30000),
+      body: JSON.stringify({
+        model: 'gpt-4o',
+        provider: 'openai',
+        messages: [
+          {
+            role: 'system',
+            content: `You are helping calibrate a pavement rating AI. Based on the corrections below, write 3–6 clear, concise rules that describe how this user rates pavement differently from the default. Each rule should be one sentence, actionable, and specific. Output ONLY a numbered list — no intro text, no explanation.`
+          },
+          { role: 'user', content: summary }
+        ],
+        max_tokens: 400
+      })
+    });
+
+    const data = await res.json();
+    const text = data.choices?.[0]?.message?.content || '';
+    const rules = text.split('\n').map(l => l.replace(/^\d+\.\s*/, '').trim()).filter(Boolean);
+
+    document.getElementById('refine-ai-loading').classList.add('hidden');
+    const rulesContainer = document.getElementById('refine-ai-rules');
+    rulesContainer.classList.remove('hidden');
+    rulesContainer.innerHTML = `
+      <p class="refine-ai-subtitle">Review these rules — approve, edit, or delete before applying.</p>
+      <div id="refine-rules-list">
+        ${rules.map((r, i) => `
+          <div class="refine-rule-row" id="refine-rule-${i}">
+            <input class="refine-rule-input" value="${escHtml(r)}" id="refine-rule-input-${i}">
+            <button class="refine-rule-delete" onclick="document.getElementById('refine-rule-${i}').remove()" title="Remove">✕</button>
+          </div>
+        `).join('')}
+      </div>
+      <div class="refine-ai-actions">
+        <button class="btn-primary" onclick="applyCalibrationRules()">Apply Rules</button>
+        <button class="btn-secondary" onclick="closeRefineAIModal()">Cancel</button>
+      </div>
+    `;
+  } catch (e) {
+    console.error('Refine AI error:', e);
+    document.getElementById('refine-ai-loading').innerHTML = '<p style="color:#ef4444">Failed to generate rules — try again.</p>';
+  }
+}
+
+function applyCalibrationRules() {
+  const inputs = document.querySelectorAll('.refine-rule-input');
+  const rules = Array.from(inputs).map(i => i.value.trim()).filter(Boolean);
+  if (rules.length === 0) { showToast('No rules to apply'); return; }
+  activeProject.calibrationRules = rules;
+  activeProject.calibrationLog = []; // clear log after rules applied
+  saveProjects();
+  closeRefineAIModal();
+  renderProjectSelector();
+  showToast(`${rules.length} calibration rule${rules.length > 1 ? 's' : ''} applied`);
+}
+
+function closeRefineAIModal(e) {
+  if (e && e.target !== document.getElementById('refine-ai-overlay')) return;
+  document.getElementById('refine-ai-overlay').classList.add('hidden');
+}
+
+function clearCalibrationRules() {
+  if (!confirm('Clear all calibration rules?')) return;
+  activeProject.calibrationRules = [];
+  activeProject.calibrationLog = [];
+  saveProjects();
+  renderProjectSelector();
+  showToast('Calibration cleared');
 }
 
 // ─── EDIT ANALYSIS & ADMIN NOTES ──────────────────────────
@@ -1890,6 +2063,7 @@ async function rescanStreet(id) {
     const analysis = await analyzeStreetView(street);
     street.analysis = analysis.text;
     street.rating = analysis.rating;
+    street.aiRating = analysis.rating;
     street.weedAlert = analysis.weedAlert || false;
     street.weedNotes = analysis.weedNotes || '';
     street.ravelingAlert = analysis.ravelingAlert || false;
@@ -3178,6 +3352,7 @@ async function saveHighlightedStreet(startPt, endPt) {
     analyzeStreetView(street).then(analysis => {
       street.analysis = analysis.text;
       street.rating = analysis.rating;
+      street.aiRating = analysis.rating;
       street.weedAlert = analysis.weedAlert || false;
       street.weedNotes = analysis.weedNotes || '';
       street.ravelingAlert = analysis.ravelingAlert || false;

@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>PaveScan</title>
-  <link rel="stylesheet" href="style.css?v=137">
+  <link rel="stylesheet" href="style.css?v=138">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 </head>
@@ -57,6 +57,19 @@
       <button class="btn-close" onclick="closeReport()" style="position:absolute;top:10px;right:14px;">&times;</button>
       <h3 id="report-title">Project Report</h3>
       <div id="report-content" class="report-content">Generating report...</div>
+    </div>
+  </div>
+
+  <!-- ─── REFINE AI MODAL ──────────────────────────────────── -->
+  <div id="refine-ai-overlay" class="modal-overlay hidden" onclick="closeRefineAIModal(event)">
+    <div class="modal refine-ai-modal" onclick="event.stopPropagation()">
+      <button class="btn-close" onclick="closeRefineAIModal()" style="position:absolute;top:10px;right:14px;">&times;</button>
+      <h3>Refine AI Calibration</h3>
+      <div id="refine-ai-loading" class="refine-ai-loading">
+        <div class="scan-spinner"></div>
+        <p>Analyzing your corrections and generating rules...</p>
+      </div>
+      <div id="refine-ai-rules" class="hidden"></div>
     </div>
   </div>
 
@@ -224,7 +237,7 @@
   </div>
 
   <!-- ─── SCRIPTS ─────────────────────────────────────────── -->
-  <script src="app.js?v=137"></script>
+  <script src="app.js?v=138"></script>
   <script async defer
     src="https://maps.googleapis.com/maps/api/js?key=AIzaSyALUzyaUCMmtVah_gcnoe-g2VGeezsPkZ8&callback=initMap&loading=async&libraries=marker">
   </script>

@@ -242,6 +242,95 @@ body {
 }
 .ai-notes-input:focus { border-color: var(--accent); }
 .ai-notes-input::placeholder { color: var(--text-dim); }
+/* ─── CALIBRATION ───────────────────────────────────────── */
+.calib-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 6px;
+  padding: 6px 10px;
+  background: var(--bg-dark);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  gap: 8px;
+}
+.calib-bar-label {
+  font-size: 10px;
+  color: var(--text-dim);
+  flex: 1;
+}
+.calib-bar-actions { display: flex; gap: 6px; }
+.btn-calib-refine, .btn-calib-clear {
+  font-size: 10px;
+  font-weight: 600;
+  padding: 3px 10px;
+  border-radius: 4px;
+  cursor: pointer;
+  border: 1px solid;
+  background: none;
+}
+.btn-calib-refine { border-color: var(--accent); color: var(--accent); }
+.btn-calib-refine:hover { background: rgba(99,102,241,0.12); }
+.btn-calib-clear { border-color: var(--border); color: var(--text-muted); }
+.btn-calib-clear:hover { border-color: #ef4444; color: #ef4444; }
+.calib-reason-box {
+  background: var(--bg-card);
+  border: 1px solid var(--accent);
+  border-radius: 8px;
+  padding: 10px 12px;
+  margin: 8px 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.calib-reason-label { font-size: 11px; color: var(--text-muted); font-weight: 500; }
+.calib-reason-input {
+  background: var(--bg-dark);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--text);
+  font-size: 11px;
+  font-family: inherit;
+  padding: 6px 8px;
+  resize: none;
+  outline: none;
+}
+.calib-reason-input:focus { border-color: var(--accent); }
+.calib-reason-actions { display: flex; gap: 8px; }
+/* Refine AI modal */
+.refine-ai-modal { max-width: 500px; width: 92%; }
+.refine-ai-loading { display: flex; flex-direction: column; align-items: center; gap: 12px; padding: 20px 0; }
+.refine-ai-loading p { font-size: 13px; color: var(--text-muted); }
+.refine-ai-subtitle { font-size: 12px; color: var(--text-muted); margin-bottom: 12px; }
+.refine-rule-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+.refine-rule-input {
+  flex: 1;
+  background: var(--bg-dark);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--text);
+  font-size: 12px;
+  font-family: inherit;
+  padding: 7px 10px;
+  outline: none;
+}
+.refine-rule-input:focus { border-color: var(--accent); }
+.refine-rule-delete {
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  font-size: 14px;
+  padding: 4px;
+  flex-shrink: 0;
+}
+.refine-rule-delete:hover { color: #ef4444; }
+.refine-ai-actions { display: flex; gap: 10px; margin-top: 14px; }
 .toggle-pill {
   flex: 1;
   display: flex;
