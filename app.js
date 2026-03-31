@@ -1312,6 +1312,7 @@ async function rescanStreet(id) {
   saveStreets();
   hideScanModal();
 
+  drawAllHighlights();
   placeAllMarkers();
   updateStats();
   selectStreet(id);
