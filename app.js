@@ -1894,6 +1894,12 @@ function lightboxSetNote(value) {
   saveStreets();
 }
 
+function lightboxSaveNote() {
+  const value = document.getElementById('lightbox-note-input')?.value || '';
+  lightboxSetNote(value);
+  showToast('Note saved');
+}
+
 function lightboxDeletePhoto() {
   const p = _lbPhotos[_lbIdx];
   if (!p?.id) return;

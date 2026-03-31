@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>PaveScan</title>
-  <link rel="stylesheet" href="style.css?v=120">
+  <link rel="stylesheet" href="style.css?v=121">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 </head>
@@ -160,7 +160,8 @@
         </select>
       </div>
       <div id="lightbox-note-row" class="lightbox-note-row hidden">
-        <textarea id="lightbox-note-input" class="lightbox-note-input" rows="2" placeholder="Add a note..." oninput="lightboxSetNote(this.value)"></textarea>
+        <textarea id="lightbox-note-input" class="lightbox-note-input" rows="2" placeholder="Add a note..."></textarea>
+        <button class="btn-primary" style="margin-top:6px;width:100%;font-size:12px;padding:7px" onclick="lightboxSaveNote()">Save Note</button>
       </div>
       <div class="lightbox-nav">
         <button onclick="lightboxNav(-1)">&#8592;</button>
@@ -220,7 +221,7 @@
   </div>
 
   <!-- ─── SCRIPTS ─────────────────────────────────────────── -->
-  <script src="app.js?v=120"></script>
+  <script src="app.js?v=121"></script>
   <script async defer
     src="https://maps.googleapis.com/maps/api/js?key=AIzaSyALUzyaUCMmtVah_gcnoe-g2VGeezsPkZ8&callback=initMap&loading=async&libraries=marker">
   </script>
