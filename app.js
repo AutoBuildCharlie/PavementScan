@@ -178,6 +178,7 @@ function createProject(name, type = 'crack-seal') {
     name: name,
     type: type, // 'crack-seal' | 'slurry' | 'both'
     includeWideCracks: false, // default: skip 1.25"+ cracks
+    detectRR: false, // Remove & Replace detection off by default
     aiEnabled: true, // AI analysis + photo capture on by default
     scanModel: 'gpt-4o', // AI model used for scanning
     streets: [],
@@ -271,12 +272,23 @@ function renderProjectSelector() {
           <option value="gemini-2.0-flash" ${activeProject.scanModel === 'gemini-2.0-flash' ? 'selected' : ''}>Gemini Flash</option>
         </select>
       </div>
+      <div class="toggle-pill" onclick="toggleRR()" title="${activeProject.detectRR ? 'Remove & Replace detection ON — click to turn off' : 'Remove & Replace detection OFF — click to turn on'}">
+        <span class="toggle-label">R&amp;R Detection</span>
+        <span class="toggle-value ${activeProject.detectRR ? 'toggle-on' : 'toggle-off'}">${activeProject.detectRR ? 'ON' : 'OFF'}</span>
+      </div>
       <div class="toggle-pill" onclick="cycleProjectType()" title="Project type — click to change">
         <span class="toggle-label">Project Type</span>
         <span class="toggle-value toggle-on">${activeProject.type === 'slurry' ? 'Slurry Seal' : activeProject.type === 'both' ? 'Both' : 'Crack Seal'}</span>
       </div>
     </div>
   `;
+}
+
+function toggleRR() {
+  activeProject.detectRR = !activeProject.detectRR;
+  saveProjects();
+  renderProjectSelector();
+  showToast(activeProject.detectRR ? 'R&R Detection ON' : 'R&R Detection OFF');
 }
 
 function cycleProjectType() {
@@ -349,6 +361,8 @@ function migrateOldData() {
     });
     // Migrate projects missing type field — default to crack-seal
     if (!p.type) { p.type = 'crack-seal'; changed = true; }
+    // Migrate projects missing detectRR field — default to off
+    if (p.detectRR === undefined) { p.detectRR = false; changed = true; }
   });
   if (changed) {
     streets = activeProject.streets;
@@ -655,6 +669,8 @@ async function saveStreet() {
     street.weedNotes = analysis.weedNotes || '';
     street.ravelingAlert = analysis.ravelingAlert || false;
     street.ravelingNotes = analysis.ravelingNotes || '';
+    street.rrAlert = analysis.rrAlert || false;
+    street.rrNotes = analysis.rrNotes || '';
     street.scannedAt = new Date().toISOString();
   }
 
@@ -857,6 +873,7 @@ async function analyzeStreetView(street) {
             content: (() => {
   const projType = activeProject?.type || 'crack-seal';
   const isSlurry = projType === 'slurry' || projType === 'both';
+  const detectRR = activeProject?.detectRR === true;
   const crackInstructions = isSlurry
     ? `IMPORTANT — CRACK WIDTH THRESHOLDS (Slurry Seal project):
 - Any cracks 0.25 inches (1/4") or wider must be crack sealed before slurry can be applied. Flag these with "⚠ PREP CRACKS DETECTED (0.25"+)".
@@ -886,6 +903,7 @@ Use this rating scale:
 ${crackInstructions}
 
 IMPORTANT: Look for raveling — aggregate (small stones/gravel) coming loose from the surface, leaving a rough, pitted, or frayed texture. Flag with "⚠ RAVELING DETECTED" if present.
+${detectRR ? `IMPORTANT: Look for Remove & Replace conditions — pavement that is broken apart, has large open gaps (4"+), collapsed edges, severe potholes, or structural failure beyond normal cracking. These areas cannot be crack sealed or slurry sealed and require saw-cut excavation and HMA patching first. Flag with "⚠ REMOVE & REPLACE NEEDED" if present.` : ''}
 
 Your response must include:
 1. PHOTOS ANALYZED: ${validPairs.length} images covering ${formatNumber(street.length || 0)} ft
@@ -893,9 +911,12 @@ Your response must include:
 ${wideCrackSection}
 4. WEED/GRASS CONTROL: If you see vegetation growing from cracks, flag with "🌿 WEED CONTROL NEEDED", describe extent (light/moderate/heavy), and reference which photo(s). If none, write "None detected."
 5. RAVELING: If you see aggregate loss, rough/pitted/frayed surface texture, or exposed aggregate, flag with "⚠ RAVELING DETECTED", describe severity (light/moderate/heavy), and reference which photo(s). If none, write "None detected."
-6. WHAT I CAN'T SEE: 1-2 bullet points about limitations
+${detectRR ? `6. REMOVE & REPLACE: If you see broken-apart pavement, large open gaps (4"+), collapsed edges, severe potholes, or structural failure, flag with "⚠ REMOVE & REPLACE NEEDED", describe location and extent, and reference which photo(s). If none, write "None detected."
+7. WHAT I CAN'T SEE: 1-2 bullet points about limitations
+8. Level: [1/2/3/4]
+9. PHOTO RATINGS: Rate each photo individually. One line, exactly: "Photo 1: [1/2/3/4], Photo 2: [1/2/3/4], ..."` : `6. WHAT I CAN'T SEE: 1-2 bullet points about limitations
 7. Level: [1/2/3/4]
-8. PHOTO RATINGS: Rate each photo individually. One line, exactly: "Photo 1: [1/2/3/4], Photo 2: [1/2/3/4], ..."
+8. PHOTO RATINGS: Rate each photo individually. One line, exactly: "Photo 1: [1/2/3/4], Photo 2: [1/2/3/4], ..."`}
 
 Be honest. Weight toward the worst section. Do not guess — only rate what you can actually see.`;
 })()
@@ -936,10 +957,12 @@ Be honest. Weight toward the worst section. Do not guess — only rate what you 
     const weedNotes = extractWeedNotes(text);
     const ravelingAlert = extractRavelingAlert(text);
     const ravelingNotes = extractRavelingNotes(text);
+    const rrAlert = extractRRAlert(text);
+    const rrNotes = extractRRNotes(text);
     // Store per-photo ratings from AI response
     const photoRatings = extractPhotoRatings(text, samplePoints.length);
     photoRatings.forEach((r, i) => { if (street.scanPhotos[i] && r) street.scanPhotos[i].rating = r; });
-    return { text, rating, weedAlert, weedNotes, ravelingAlert, ravelingNotes };
+    return { text, rating, weedAlert, weedNotes, ravelingAlert, ravelingNotes, rrAlert, rrNotes };
   } catch (e) {
     console.error('AI analysis error:', e);
     return analyzeWithPlaceholder(street);
@@ -1051,6 +1074,20 @@ function extractWeedPhotoIndices(weedText) {
     if (!indices.includes(idx)) indices.push(idx);
   }
   return indices;
+}
+
+function extractRRAlert(text) {
+  const lower = text.toLowerCase();
+  if (lower.includes('remove & replace needed') || lower.includes('remove and replace needed')) return true;
+  if (lower.includes('remove & replace') || lower.includes('r&r needed')) return true;
+  return false;
+}
+
+function extractRRNotes(text) {
+  const match = text.match(/6\.\s*REMOVE\s*[&and]+\s*REPLACE[:\s]+([\s\S]*?)(?=7\.\s*WHAT I CAN'T SEE|8\.\s*Level:|$)/i);
+  if (match) return match[1].trim();
+  const match2 = text.match(/REMOVE\s*[&and]+\s*REPLACE[:\s]+([\s\S]*?)(?=WHAT I CAN'T SEE|Level:|$)/i);
+  return match2 ? match2[1].trim() : '';
 }
 
 function ratingLabel(rating) {
@@ -1193,6 +1230,7 @@ function renderStreetList() {
       ${s.crossesBoundary ? `<div class="street-card-boundary">⚠ ${escHtml(s.boundaryNote)}</div>` : ''}
       ${s.weedAlert ? `<div class="street-card-weed">🌿 Weed control needed</div>` : ''}
       ${s.ravelingAlert ? `<div class="street-card-weed" style="color:#f59e0b">⚠ Raveling detected</div>` : ''}
+      ${s.rrAlert ? `<div class="street-card-weed" style="color:#ef4444">🔴 Remove &amp; Replace needed</div>` : ''}
       <div class="street-card-meta">
         <span class="street-card-sqft">${s.sqft ? formatNumber(s.sqft) + ' sq ft' : 'No dimensions'}</span>
         <span class="rating-badge rating-${s.rating}" title="${ratingDescription(s.rating)}">${ratingLabel(s.rating)}</span>
@@ -1254,6 +1292,10 @@ function selectStreet(id) {
       ${street.ravelingAlert ? `<div class="detail-weed-warn" style="border-color:rgba(245,158,11,0.3);background:rgba(245,158,11,0.08)">
         ⚠ Raveling detected on this street — surface aggregate loss noted
         ${street.ravelingNotes ? `<div class="weed-notes">${escHtml(street.ravelingNotes)}</div>` : ''}
+      </div>` : ''}
+      ${street.rrAlert ? `<div class="detail-weed-warn" style="border-color:rgba(239,68,68,0.4);background:rgba(239,68,68,0.08)">
+        🔴 Remove &amp; Replace needed — structural failure detected
+        ${street.rrNotes ? `<div class="weed-notes">${escHtml(street.rrNotes)}</div>` : ''}
       </div>` : ''}
       <div class="detail-address">Added ${formatDate(street.createdAt)}</div>
     </div>
@@ -1539,6 +1581,8 @@ function saveAnalysis(id) {
   street.weedNotes = extractWeedNotes(text);
   street.ravelingAlert = extractRavelingAlert(text);
   street.ravelingNotes = extractRavelingNotes(text);
+  street.rrAlert = extractRRAlert(text);
+  street.rrNotes = extractRRNotes(text);
   saveStreets();
   renderStreetList();
   updateStats();
@@ -1598,6 +1642,8 @@ async function rescanStreet(id) {
     street.weedNotes = analysis.weedNotes || '';
     street.ravelingAlert = analysis.ravelingAlert || false;
     street.ravelingNotes = analysis.ravelingNotes || '';
+    street.rrAlert = analysis.rrAlert || false;
+    street.rrNotes = analysis.rrNotes || '';
     street.scannedAt = new Date().toISOString();
 
     saveStreets();
@@ -2240,6 +2286,8 @@ function startFreePhoto() {
         weedNotes: '',
         ravelingAlert: false,
         ravelingNotes: '',
+        rrAlert: false,
+        rrNotes: '',
         svImage: getStreetViewUrl(lat, lng),
         photos: [],
         scanPhotos: [],
@@ -2462,6 +2510,8 @@ async function saveHighlightedStreet(startPt, endPt) {
     street.weedNotes = analysis.weedNotes || '';
     street.ravelingAlert = analysis.ravelingAlert || false;
     street.ravelingNotes = analysis.ravelingNotes || '';
+    street.rrAlert = analysis.rrAlert || false;
+    street.rrNotes = analysis.rrNotes || '';
     street.scannedAt = new Date().toISOString();
     saveStreets();
     drawAllHighlights();
@@ -2739,6 +2789,7 @@ async function generateProjectReport() {
   const boundaryStreets = streets.filter(s => s.crossesBoundary);
   const weedStreets = streets.filter(s => s.weedAlert);
   const ravelingStreets = streets.filter(s => s.ravelingAlert);
+  const rrStreets = streets.filter(s => s.rrAlert);
   const projectTypeLabel = activeProject.type === 'slurry' ? 'Slurry Seal' : activeProject.type === 'both' ? 'Crack Seal + Slurry Seal' : 'Crack Seal';
 
   // Treatment breakdown
@@ -2750,7 +2801,7 @@ async function generateProjectReport() {
 
   // Build street summary for AI
   const streetSummary = streets.map(s =>
-    `- ${s.name}: ${formatNumber(s.length || 0)} ft, ${formatNumber(s.sqft || 0)} sq ft, Rating: ${s.rating}, City: ${s.city || 'Unknown'}${s.weedAlert ? ', ⚠ WEED CONTROL NEEDED' : ''}${s.ravelingAlert ? ', ⚠ RAVELING DETECTED' : ''}${s.adminNotes ? ', Admin notes: ' + s.adminNotes : ''}`
+    `- ${s.name}: ${formatNumber(s.length || 0)} ft, ${formatNumber(s.sqft || 0)} sq ft, Rating: ${s.rating}, City: ${s.city || 'Unknown'}${s.weedAlert ? ', ⚠ WEED CONTROL NEEDED' : ''}${s.ravelingAlert ? ', ⚠ RAVELING DETECTED' : ''}${s.rrAlert ? ', 🔴 REMOVE & REPLACE NEEDED' : ''}${s.adminNotes ? ', Admin notes: ' + s.adminNotes : ''}`
   ).join('\n');
 
   // Get AI project summary
@@ -2853,6 +2904,8 @@ async function generateProjectReport() {
     ${weedStreets.length > 0 ? `<div class="report-section" style="border-color:rgba(34,197,94,0.3)"><div class="report-label" style="color:#22c55e">🌿 Weed/Grass Control (${weedStreets.length} street${weedStreets.length > 1 ? 's' : ''})</div><div style="font-size:12px">${weedStreets.map(s => escHtml(s.name?.split(',')[0] || 'Unknown')).join('<br>')}</div></div>` : ''}
 
     ${ravelingStreets.length > 0 ? `<div class="report-section" style="border-color:rgba(245,158,11,0.3)"><div class="report-label" style="color:#f59e0b">⚠ Raveling Detected (${ravelingStreets.length} street${ravelingStreets.length > 1 ? 's' : ''})</div><div style="font-size:12px">${ravelingStreets.map(s => escHtml(s.name?.split(',')[0] || 'Unknown')).join('<br>')}</div></div>` : ''}
+
+    ${rrStreets.length > 0 ? `<div class="report-section" style="border-color:rgba(239,68,68,0.4)"><div class="report-label" style="color:#ef4444">🔴 Remove &amp; Replace Needed (${rrStreets.length} street${rrStreets.length > 1 ? 's' : ''})</div><div style="font-size:12px">${rrStreets.map(s => escHtml(s.name?.split(',')[0] || 'Unknown')).join('<br>')}</div></div>` : ''}
 
     <div class="report-section">
       <div class="report-label">Street Breakdown</div>
