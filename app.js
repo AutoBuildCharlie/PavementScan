@@ -834,9 +834,13 @@ Be honest. Weight toward the worst section. Do not guess — only rate what you 
 
     if (!res.ok) throw new Error(`AI proxy ${res.status}`);
     const data = await res.json();
-    if (data.error) throw new Error(data.error.message || 'AI returned error');
+    if (data.error) throw new Error(data.error.message || JSON.stringify(data.error));
     const text = data.choices?.[0]?.message?.content || '';
-    if (!text) return analyzeWithPlaceholder(street);
+    if (!text) {
+      console.warn('AI returned empty response:', JSON.stringify(data));
+      showToast('Scan failed — check console for details');
+      return analyzeWithPlaceholder(street);
+    }
     const rating = extractRating(text);
     const weedAlert = extractWeedAlert(text);
     const weedNotes = extractWeedNotes(text);
