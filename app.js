@@ -799,15 +799,7 @@ Be honest. Weight toward the worst section. Do not guess — only rate what you 
       })
     });
 
-    if (!res.ok) throw new Error(`AI proxy ${res.status}`);
-    const data = await res.json();
-    if (data.error) throw new Error(data.error.message || 'AI returned error');
-    const text = data.choices?.[0]?.message?.content || '';
-    if (!text) return analyzeWithPlaceholder(street);
-    const rating = extractRating(text);
-    const weedAlert = extractWeedAlert(text);
-
-    // Store scan photo info
+    // Store scan photos before AI call so they're preserved even if AI fails
     street.photosScanned = validPairs.length;
     street.scanPhotos = samplePoints.map(pt => ({
       url: getStreetViewUrl(pt.lat, pt.lng, pt.heading || 0),
@@ -817,6 +809,13 @@ Be honest. Weight toward the worst section. Do not guess — only rate what you 
       lng: pt.lng
     }));
 
+    if (!res.ok) throw new Error(`AI proxy ${res.status}`);
+    const data = await res.json();
+    if (data.error) throw new Error(data.error.message || 'AI returned error');
+    const text = data.choices?.[0]?.message?.content || '';
+    if (!text) return analyzeWithPlaceholder(street);
+    const rating = extractRating(text);
+    const weedAlert = extractWeedAlert(text);
     const weedNotes = extractWeedNotes(text);
     return { text, rating, weedAlert, weedNotes };
   } catch (e) {
