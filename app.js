@@ -1341,7 +1341,7 @@ function renderStreetList() {
             ? formatNumber(Math.round(s.sqft / 9)) + ' SY'
             : activeProject.type === 'both'
               ? formatNumber(s.sqft) + ' SF · ' + formatNumber(Math.round(s.sqft / 9)) + ' SY'
-              : formatNumber(s.sqft) + ' sq ft'
+              : formatNumber(s.sqft) + ' sq FT'
         ) : 'No dimensions'}</span>
         <span class="rating-badge rating-${s.rating}" title="${ratingDescription(s.rating)}">${ratingLabel(s.rating)}</span>
       </div>
