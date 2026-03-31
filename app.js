@@ -685,6 +685,22 @@ function getStreetViewUrlHD(lat, lng, heading = 0) {
   return `${SV_BASE}?size=640x640&location=${lat},${lng}&heading=${heading}&pitch=-25&fov=80&key=${API_KEY}`;
 }
 
+// When direct thumbnail load fails, try fetching via worker proxy (unrestricted key)
+async function loadSvThumbnailViaProxy(imgEl, svUrl) {
+  try {
+    const dataUrl = await imageUrlToBase64(svUrl);
+    if (dataUrl) {
+      imgEl.src = dataUrl;
+    } else {
+      imgEl.src = '';
+      imgEl.alt = 'Street View not available';
+    }
+  } catch (e) {
+    imgEl.src = '';
+    imgEl.alt = 'Street View not available';
+  }
+}
+
 // ─── AI ANALYSIS ───────────────────────────────────────────
 
 // Offset a lat/lng point in a given heading direction by distanceFt
@@ -1181,7 +1197,7 @@ function selectStreet(id) {
 
     <div class="detail-section">
       <h4>Street View</h4>
-      <img class="streetview-img" src="${street.svImage}" alt="Street View of ${escHtml(street.name)}" onclick="openStreetViewAt(${street.lat}, ${street.lng})" style="cursor:pointer" title="Click to open interactive Street View" onerror="this.src=''; this.alt='Street View not available'">
+      <img class="streetview-img" src="${street.svImage}" alt="Street View of ${escHtml(street.name)}" onclick="openStreetViewAt(${street.lat}, ${street.lng})" style="cursor:pointer" title="Click to open interactive Street View" onerror="loadSvThumbnailViaProxy(this, '${street.svImage}')">
     </div>
 
     ${activeProject.aiEnabled !== false ? `
