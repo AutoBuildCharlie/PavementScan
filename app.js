@@ -823,10 +823,12 @@ Be honest. Weight toward the worst section. Do not guess — only rate what you 
     });
 
     // Store scan photos before AI call so they're preserved even if AI fails
+    // Also store the fetched base64 so the lightbox can display them without hitting Google directly
     street.photosScanned = validPairs.length;
-    street.scanPhotos = samplePoints.map(pt => ({
+    street.scanPhotos = samplePoints.map((pt, i) => ({
       url: getStreetViewUrl(pt.lat, pt.lng, pt.heading || 0),
       hdUrl: getStreetViewUrlHD(pt.lat, pt.lng, pt.heading || 0),
+      dataUrl: images[i] || null,
       label: pt.label,
       lat: pt.lat,
       lng: pt.lng
@@ -1562,7 +1564,7 @@ function lightboxNav(dir) {
 
 function _renderLightbox() {
   const p = _lbPhotos[_lbIdx];
-  document.getElementById('lightbox-img').src = p.hdUrl || p.url;
+  document.getElementById('lightbox-img').src = p.dataUrl || p.hdUrl || p.url;
   document.getElementById('lightbox-label').textContent = p.label;
   document.getElementById('lightbox-count').textContent = `${_lbIdx + 1} / ${_lbPhotos.length}`;
 }
