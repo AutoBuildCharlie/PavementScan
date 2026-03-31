@@ -586,26 +586,31 @@ body {
 }
 .sv-toolbar {
   position: absolute;
-  top: 12px;
-  left: 12px;
+  bottom: 16px;
+  left: 50%;
+  transform: translateX(-50%);
   z-index: 11;
   display: flex;
-  gap: 8px;
+  gap: 10px;
 }
 .btn-close-sv, .btn-sv-snap {
-  background: var(--bg-card);
+  background: rgba(15,15,20,0.82);
   color: var(--text);
-  border: 1px solid var(--border);
-  padding: 8px 16px;
-  border-radius: var(--radius-sm);
-  font-size: 13px;
+  border: 1px solid rgba(255,255,255,0.12);
+  padding: 8px 18px;
+  border-radius: 999px;
+  font-size: 12px;
   font-weight: 600;
   cursor: pointer;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.5);
+  backdrop-filter: blur(6px);
+  box-shadow: 0 2px 12px rgba(0,0,0,0.6);
+  letter-spacing: 0.02em;
+  transition: background 0.15s, border-color 0.15s;
 }
 .btn-close-sv:hover, .btn-sv-snap:hover {
-  background: var(--accent);
-  color: #000;
+  background: rgba(15,15,20,0.96);
+  border-color: var(--accent);
+  color: var(--accent);
 }
 .snap-review-modal {
   max-width: 480px;
