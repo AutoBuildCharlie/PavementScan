@@ -60,6 +60,7 @@ function initMap() {
     center: { lat: 33.83, lng: -117.91 }, // Anaheim default
     zoom: 12,
     mapTypeId: 'roadmap',
+    mapId: 'f2e86140855a96ec510d9c73',
     styles: darkMapStyle(),
     disableDefaultUI: true,
     zoomControl: true,
@@ -87,6 +88,23 @@ function initMap() {
 
   // Backfill boundary points for existing streets
   migrateBoundaryPoints();
+}
+
+// ─── ADVANCED MARKER HELPER ────────────────────────────────
+// Wraps AdvancedMarkerElement with setMap/getPosition shims
+// so existing code doesn't need to change
+function makeMarker(opts) {
+  const { icon, ...rest } = opts; // strip old icon field
+  const m = new google.maps.marker.AdvancedMarkerElement(rest);
+  m.setMap = (mapInst) => { m.map = mapInst; };
+  m.getPosition = () => m.position;
+  return m;
+}
+
+function makeDotContent(color, size, borderColor, opacity = 1) {
+  const el = document.createElement('div');
+  el.style.cssText = `width:${size}px;height:${size}px;background:${opacity < 1 ? 'transparent' : color};border:2px solid ${borderColor || '#fff'};border-radius:50%;cursor:pointer;`;
+  return el;
 }
 
 // ─── STORAGE & PROJECTS ────────────────────────────────────
@@ -975,26 +993,11 @@ function placeAllMarkers() {
   streets.forEach(street => {
     // Only show marker if street has no highlight line (line is the visual)
     const hasLine = street.path && street.path.length >= 2;
-    const marker = new google.maps.Marker({
+    const marker = makeMarker({
       position: { lat: street.lat, lng: street.lng },
       map: map,
       title: street.name,
-      icon: hasLine ? {
-        // Invisible clickable area for highlighted streets
-        path: google.maps.SymbolPath.CIRCLE,
-        scale: 6,
-        fillColor: ratingColor(street.rating),
-        fillOpacity: 0,
-        strokeWeight: 0
-      } : {
-        // Visible dot for streets without highlights
-        path: google.maps.SymbolPath.CIRCLE,
-        scale: 8,
-        fillColor: ratingColor(street.rating),
-        fillOpacity: 0.9,
-        strokeColor: '#fff',
-        strokeWeight: 2
-      }
+      content: makeDotContent(ratingColor(street.rating), hasLine ? 12 : 16, '#fff', hasLine ? 0 : 1)
     });
 
     marker.addListener('click', () => selectStreet(street.id));
@@ -1264,15 +1267,16 @@ function selectStreet(id) {
         center: { lat: street.lat, lng: street.lng },
         zoom: 17,
         mapTypeId: 'roadmap',
+        mapId: 'f2e86140855a96ec510d9c73',
         styles: darkMapStyle(),
         disableDefaultUI: true,
         zoomControl: true
       });
 
-      miniMapMarker = new google.maps.Marker({
+      miniMapMarker = makeMarker({
         position: { lat: street.lat, lng: street.lng },
         map: miniMap,
-        icon: { path: google.maps.SymbolPath.CIRCLE, scale: 10, fillColor: '#f59e0b', fillOpacity: 1, strokeColor: '#fff', strokeWeight: 3 }
+        content: makeDotContent('#f59e0b', 20, '#fff')
       });
 
       // Draw highlighted streets on mini map
@@ -1636,18 +1640,11 @@ function goToMyLocation() {
 
       // Drop a blue "You" marker
       if (window._myLocationMarker) window._myLocationMarker.setMap(null);
-      window._myLocationMarker = new google.maps.Marker({
+      window._myLocationMarker = makeMarker({
         position: { lat, lng },
         map: map,
         title: 'You are here',
-        icon: {
-          path: google.maps.SymbolPath.CIRCLE,
-          scale: 10,
-          fillColor: '#3b82f6',
-          fillOpacity: 1,
-          strokeColor: '#fff',
-          strokeWeight: 3
-        }
+        content: makeDotContent('#3b82f6', 20, '#fff')
       });
       showToast('Centered on your location');
     },
@@ -1771,18 +1768,11 @@ function placePhotoMarkers() {
   streets.forEach(street => {
     if (!street.photos) return;
     street.photos.forEach(photo => {
-      const marker = new google.maps.Marker({
+      const marker = makeMarker({
         position: { lat: photo.lat, lng: photo.lng },
         map: map,
         title: `Photo — ${photo.address || 'On-site'}`,
-        icon: {
-          path: google.maps.SymbolPath.CIRCLE,
-          scale: 7,
-          fillColor: '#a855f7',
-          fillOpacity: 1,
-          strokeColor: '#fff',
-          strokeWeight: 2
-        }
+        content: makeDotContent('#a855f7', 14, '#fff')
       });
 
       const infoWindow = new google.maps.InfoWindow({
@@ -2155,19 +2145,10 @@ async function saveHighlightedStreet(startPt, endPt) {
 }
 
 function addTempMarker(latLng, label, color) {
-  const marker = new google.maps.Marker({
-    position: latLng,
-    map: map,
-    label: { text: label, color: '#fff', fontWeight: '700', fontSize: '12px' },
-    icon: {
-      path: google.maps.SymbolPath.CIRCLE,
-      scale: 12,
-      fillColor: color,
-      fillOpacity: 1,
-      strokeColor: '#fff',
-      strokeWeight: 2
-    }
-  });
+  const el = document.createElement('div');
+  el.style.cssText = `width:24px;height:24px;background:${color};border:2px solid #fff;border-radius:50%;display:flex;align-items:center;justify-content:center;color:#fff;font-size:12px;font-weight:700;cursor:pointer;`;
+  el.textContent = label;
+  const marker = makeMarker({ position: latLng, map: map, content: el });
   highlightMarkers.push(marker);
 }
 
@@ -2282,25 +2263,17 @@ function drawAllHighlights() {
       const startLabelPos = offsetPoint(startLabelMid.lat, startLabelMid.lng, perpUp, 120);
       const endLabelPos   = offsetPoint(endLabelMid.lat,   endLabelMid.lng,   perpUp, 120);
 
-      const startLabel = new google.maps.Marker({
-        position: startLabelPos,
-        map: map,
-        title: startCity,
-        icon: { path: google.maps.SymbolPath.CIRCLE, scale: 0 },
-        label: { text: startCity, color: '#f97316', fontSize: '11px', fontWeight: 'bold' },
-        zIndex: 9
-      });
+      const startEl = document.createElement('div');
+      startEl.style.cssText = 'color:#f97316;font-size:11px;font-weight:bold;white-space:nowrap;text-shadow:0 1px 2px rgba(0,0,0,0.8);cursor:pointer;';
+      startEl.textContent = startCity;
+      const startLabel = makeMarker({ position: startLabelPos, map: map, title: startCity, content: startEl, zIndex: 9 });
       startLabel.addListener('click', () => selectStreet(street.id));
       polylines.push(startLabel);
 
-      const endLabel = new google.maps.Marker({
-        position: endLabelPos,
-        map: map,
-        title: endCity,
-        icon: { path: google.maps.SymbolPath.CIRCLE, scale: 0 },
-        label: { text: endCity, color: '#f97316', fontSize: '11px', fontWeight: 'bold' },
-        zIndex: 9
-      });
+      const endEl = document.createElement('div');
+      endEl.style.cssText = 'color:#f97316;font-size:11px;font-weight:bold;white-space:nowrap;text-shadow:0 1px 2px rgba(0,0,0,0.8);cursor:pointer;';
+      endEl.textContent = endCity;
+      const endLabel = makeMarker({ position: endLabelPos, map: map, title: endCity, content: endEl, zIndex: 9 });
       endLabel.addListener('click', () => selectStreet(street.id));
       polylines.push(endLabel);
     }
