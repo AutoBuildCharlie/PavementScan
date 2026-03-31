@@ -1336,7 +1336,13 @@ function renderStreetList() {
       ${s.ravelingAlert ? `<div class="street-card-weed" style="color:#f59e0b">⚠ Raveling detected</div>` : ''}
       ${s.rrAlert ? `<div class="street-card-weed" style="color:#ef4444">🔴 Remove &amp; Replace needed</div>` : ''}
       <div class="street-card-meta">
-        <span class="street-card-sqft">${s.sqft ? formatNumber(s.sqft) + ' sq ft' : 'No dimensions'}</span>
+        <span class="street-card-sqft">${s.sqft ? (
+          activeProject.type === 'slurry'
+            ? formatNumber(Math.round(s.sqft / 9)) + ' SY'
+            : activeProject.type === 'both'
+              ? formatNumber(s.sqft) + ' SF · ' + formatNumber(Math.round(s.sqft / 9)) + ' SY'
+              : formatNumber(s.sqft) + ' sq ft'
+        ) : 'No dimensions'}</span>
         <span class="rating-badge rating-${s.rating}" title="${ratingDescription(s.rating)}">${ratingLabel(s.rating)}</span>
       </div>
       ${s.rating && s.rating !== 'pending' ? `<div class="street-card-treatment" style="color:${getTreatment(s.rating, activeProject.type).color}">${getTreatment(s.rating, activeProject.type).label}</div>` : ''}
