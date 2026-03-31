@@ -84,18 +84,13 @@ function initMap() {
     center: { lat: 33.83, lng: -117.91 }, // Anaheim default
     zoom: 12,
     mapTypeId: 'roadmap',
-    mapId: 'f2e86140855a96ecc6c0576f',
     colorScheme: 'DARK',
     disableDefaultUI: true,
     zoomControl: true,
     mapTypeControl: true,
     mapTypeControlOptions: {
       position: google.maps.ControlPosition.TOP_RIGHT
-    }
-  });
-
-  // Hide POI icons and labels — styles array works alongside mapId for POI suppression
-  map.setOptions({
+    },
     styles: [
       { featureType: 'poi', elementType: 'all', stylers: [{ visibility: 'off' }] },
       { featureType: 'poi.park', elementType: 'geometry', stylers: [{ visibility: 'off' }] },
