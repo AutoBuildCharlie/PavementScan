@@ -1877,21 +1877,25 @@ function placePhotoMarkers() {
   streets.forEach(street => {
     if (!street.photos) return;
     street.photos.forEach(photo => {
+      const dotEl = makeDotContent('#a855f7', 14, '#fff');
       const marker = makeMarker({
         position: { lat: photo.lat, lng: photo.lng },
         map: map,
         title: `Photo — ${photo.address || 'On-site'}`,
-        content: makeDotContent('#a855f7', 14, '#fff')
+        content: dotEl,
+        gmpClickable: true
       });
 
-      const infoWindow = new google.maps.InfoWindow({
-        content: `<div style="max-width:200px;"><img src="${photo.dataUrl}" style="width:100%;border-radius:4px;"><br><small>${escHtml(photo.address || '')}<br>${new Date(photo.takenAt).toLocaleString()}</small></div>`
-      });
-      marker.addEventListener('gmp-click', () => {
+      const infoContent = `<div style="max-width:200px;font-family:sans-serif"><img src="${photo.dataUrl}" style="width:100%;border-radius:4px;margin-bottom:4px"><div style="font-size:11px;color:#555">${escHtml(photo.address || 'GPS tagged')}<br>${new Date(photo.takenAt).toLocaleString()}${photo.note ? '<br><em>' + escHtml(photo.note) + '</em>' : ''}</div></div>`;
+      const infoWindow = new google.maps.InfoWindow({ content: infoContent });
+
+      const openInfo = () => {
         if (_activeInfoWindow) _activeInfoWindow.close();
         infoWindow.open({ map, anchor: marker });
         _activeInfoWindow = infoWindow;
-      });
+      };
+      marker.addEventListener('gmp-click', openInfo);
+      dotEl.addEventListener('click', openInfo);
       photoMarkers.push(marker);
     });
   });
