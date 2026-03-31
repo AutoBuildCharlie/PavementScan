@@ -107,7 +107,7 @@ function loadProjects() {
   }
 
   streets = activeProject.streets;
-  localStorage.setItem(ACTIVE_KEY, activeProject.id);
+  try { localStorage.setItem(ACTIVE_KEY, activeProject.id); } catch(e) { /* quota */ }
 }
 
 function saveProjects() {
@@ -143,8 +143,10 @@ function switchProject(id) {
   activeProject = projects.find(p => p.id === id);
   if (!activeProject) return;
   streets = activeProject.streets;
-  localStorage.setItem(ACTIVE_KEY, activeProject.id);
+  try { localStorage.setItem(ACTIVE_KEY, activeProject.id); } catch(e) { /* quota */ }
   activeStreetId = null;
+  // Close Street View if open to avoid stale state
+  if (streetViewPano) closeStreetViewPanel();
   document.getElementById('detail-panel').classList.add('hidden');
   renderProjectSelector();
   renderStreetList();
@@ -828,7 +830,9 @@ function imageUrlToBase64(url) {
   return new Promise((resolve) => {
     const img = new Image();
     img.crossOrigin = 'anonymous';
+    const timeout = setTimeout(() => { img.src = ''; resolve(null); }, 15000);
     img.onload = () => {
+      clearTimeout(timeout);
       const canvas = document.createElement('canvas');
       canvas.width = img.width;
       canvas.height = img.height;
@@ -839,7 +843,7 @@ function imageUrlToBase64(url) {
         resolve(null);
       }
     };
-    img.onerror = () => resolve(null);
+    img.onerror = () => { clearTimeout(timeout); resolve(null); };
     img.src = url;
   });
 }
@@ -1115,7 +1119,7 @@ function selectStreet(id) {
       <h4>Photos AI Analyzed (${street.scanPhotos.length})</h4>
       <div class="scan-photo-grid">
         ${street.scanPhotos.map((p, i) => `
-          <div class="scan-photo-card" onclick="openLightbox(${JSON.stringify(street.scanPhotos).replace(/"/g, '&quot;')}, ${i})" title="Click to view photo">
+          <div class="scan-photo-card" onclick="openLightbox(streets.find(s=>s.id==='${street.id}').scanPhotos, ${i})" title="Click to view photo">
             <span class="scan-photo-icon">&#128247;</span>
             <span>${escHtml(p.label)}</span>
           </div>
@@ -1204,8 +1208,9 @@ function selectStreet(id) {
     const detailContent = document.getElementById('detail-content');
     detailContent.insertBefore(miniMapDiv, detailContent.children[1]);
 
-    // Build mini map — clean up old one first
-    setTimeout(() => {
+    // Build mini map — clean up old one first, debounce rapid calls
+    if (_miniMapTimer) clearTimeout(_miniMapTimer);
+    _miniMapTimer = setTimeout(() => {
       if (svPositionListener) { google.maps.event.removeListener(svPositionListener); svPositionListener = null; }
       if (miniMapMarker) { miniMapMarker.setMap(null); miniMapMarker = null; }
       miniMapLines.forEach(l => l.setMap(null));
@@ -1297,10 +1302,9 @@ function setRating(id, rating) {
   if (!street) return;
   street.rating = rating;
   saveStreets();
-  renderStreetList();
   updateStats();
   placeAllMarkers();
-  drawAllHighlights();
+  lastDrawnActiveId = null; // force highlight redraw
   selectStreet(id);
   showToast(`Rating set to ${ratingLabel(rating)}`);
 }
@@ -1712,10 +1716,12 @@ function deletePhoto(streetId, photoId) {
 
 // ─── PHOTO MARKERS ON MAP ──────────────────────────────────
 let photoMarkers = [];
+let _activeInfoWindow = null;
 
 function placePhotoMarkers() {
   photoMarkers.forEach(m => m.setMap(null));
   photoMarkers = [];
+  if (_activeInfoWindow) { _activeInfoWindow.close(); _activeInfoWindow = null; }
 
   streets.forEach(street => {
     if (!street.photos) return;
@@ -1735,9 +1741,13 @@ function placePhotoMarkers() {
       });
 
       const infoWindow = new google.maps.InfoWindow({
-        content: `<div style="max-width:200px;"><img src="${photo.dataUrl}" style="width:100%;border-radius:4px;"><br><small>${photo.address || ''}<br>${new Date(photo.takenAt).toLocaleString()}</small></div>`
+        content: `<div style="max-width:200px;"><img src="${photo.dataUrl}" style="width:100%;border-radius:4px;"><br><small>${escHtml(photo.address || '')}<br>${new Date(photo.takenAt).toLocaleString()}</small></div>`
       });
-      marker.addListener('click', () => infoWindow.open(map, marker));
+      marker.addListener('click', () => {
+        if (_activeInfoWindow) _activeInfoWindow.close();
+        infoWindow.open(map, marker);
+        _activeInfoWindow = infoWindow;
+      });
       photoMarkers.push(marker);
     });
   });
@@ -1765,10 +1775,14 @@ let miniMap = null;
 let miniMapMarker = null;
 let miniMapLines = [];
 let svPositionListener = null;
+let _miniMapTimer = null;
 
 function openStreetViewAt(lat, lng) {
   const panel = document.getElementById('streetview-panel');
   panel.classList.remove('hidden');
+
+  // Clean up old panorama + listener before creating new
+  if (svPositionListener) { google.maps.event.removeListener(svPositionListener); svPositionListener = null; }
 
   streetViewPano = new google.maps.StreetViewPanorama(
     document.getElementById('streetview-pano'), {
@@ -1971,6 +1985,7 @@ function handleMapClick(latLng) {
 }
 
 async function saveHighlightedStreet(startPt, endPt) {
+  showScanModal('Saving street...');
   // Get actual road path from Directions API
   let roadPath = [startPt, endPt];
   let roadLengthFt = Math.round(calcDistanceFt(startPt, endPt));
@@ -2053,11 +2068,12 @@ async function saveHighlightedStreet(startPt, endPt) {
         saveStreets();
         drawAllHighlights();
       }
-    });
+    }).catch(() => {});
   }
 
   streets.push(street);
   saveStreets();
+  hideScanModal();
 
   // Reset for next street
   window._drawStart = null;
@@ -2090,7 +2106,7 @@ async function saveHighlightedStreet(startPt, endPt) {
     drawAllHighlights();
     renderStreetList();
     updateStats();
-  });
+  }).catch(() => {});
 }
 
 function addTempMarker(latLng, label, color) {
@@ -2304,6 +2320,7 @@ function removeHighlight(id) {
   delete street.highlightStart;
   delete street.highlightEnd;
   saveStreets();
+  placeAllMarkers();
   drawAllHighlights();
   selectStreet(id);
   showToast('Highlight removed');
