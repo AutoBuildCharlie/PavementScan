@@ -760,7 +760,8 @@ function geocodeAddress(address) {
         resolve({
           lat: result.geometry.location.lat(),
           lng: result.geometry.location.lng(),
-          formatted: result.formatted_address
+          formatted: result.formatted_address,
+          locationType: result.geometry.location_type // ROOFTOP | RANGE_INTERPOLATED | GEOMETRIC_CENTER | APPROXIMATE
         });
       } else {
         console.error('Geocoding failed:', status);
@@ -2147,8 +2148,10 @@ async function searchLocation() {
     return;
   }
 
+  // Zoom based on precision: rooftop/interpolated = street level, otherwise back out a bit
+  const zoom = (geo.locationType === 'ROOFTOP' || geo.locationType === 'RANGE_INTERPOLATED') ? 19 : 17;
   map.setCenter({ lat: geo.lat, lng: geo.lng });
-  map.setZoom(17);
+  map.setZoom(zoom);
   input.value = '';
   showToast(`Found: ${geo.formatted}`);
 }
