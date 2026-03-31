@@ -812,7 +812,7 @@ IMPORTANT: If you see any cracks that appear wider than 1.25 inches, flag them w
 
 Your response must include:
 1. PHOTOS ANALYZED: ${validPairs.length} images covering ${formatNumber(street.length || 0)} ft
-2. WHAT I CAN SEE: 2-4 bullet points. For each observation, reference which photo(s) you saw it in — e.g. "(Photo 2: Mid-point 1)". Note if condition varies along the street.
+2. WHAT I CAN SEE: 2-4 bullet points. Every single bullet MUST end with the photo reference in parentheses — e.g. "(Photo 2: Mid-point 1)". Do not write any bullet without a photo citation. Note if condition varies along the street.
 3. WIDE CRACKS: If any cracks appear wider than 1.25 inches, flag with "⚠ WIDE CRACKS DETECTED (1.25"+)" and reference which photo(s). If none, write "None detected."
 4. WEED/GRASS CONTROL: If you see vegetation growing from cracks, flag with "🌿 WEED CONTROL NEEDED", describe extent (light/moderate/heavy), and reference which photo(s). If none, write "None detected."
 5. WHAT I CAN'T SEE: 1-2 bullet points about limitations
