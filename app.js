@@ -1326,7 +1326,7 @@ function selectStreet(id) {
       if (streetViewPano) {
         svPositionListener = streetViewPano.addListener('position_changed', () => {
           const pos = streetViewPano.getPosition();
-          if (miniMapMarker) { miniMapMarker.setPosition(pos); miniMap.setCenter(pos); }
+          if (miniMapMarker) { miniMapMarker.position = { lat: pos.lat(), lng: pos.lng() }; miniMap.setCenter(pos); }
 
           // Debounced address update (once per 2 sec, not every step)
           clearTimeout(svGeoTimer);
