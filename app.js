@@ -84,18 +84,14 @@ function initMap() {
     center: { lat: 33.83, lng: -117.91 }, // Anaheim default
     zoom: 12,
     mapTypeId: 'roadmap',
+    mapId: 'f2e86140855a96ecc6c0576f',
     colorScheme: 'DARK',
     disableDefaultUI: true,
     zoomControl: true,
     mapTypeControl: true,
     mapTypeControlOptions: {
       position: google.maps.ControlPosition.TOP_RIGHT
-    },
-    styles: [
-      { featureType: 'poi', elementType: 'all', stylers: [{ visibility: 'off' }] },
-      { featureType: 'poi.park', elementType: 'geometry', stylers: [{ visibility: 'off' }] },
-      { featureType: 'transit', elementType: 'labels.icon', stylers: [{ visibility: 'off' }] }
-    ]
+    }
   });
 
   // Map click listener
