@@ -3080,20 +3080,20 @@ function drawAllHighlights() {
       path: points,
       geodesic: true,
       strokeColor: color,
-      strokeOpacity: 0.2,
-      strokeWeight: 16,
+      strokeOpacity: 0.12,
+      strokeWeight: 14,
       map: map
     });
     glow.addListener('click', () => selectStreet(street.id));
     polylines.push(glow);
 
-    // Main line
+    // Main line — semi-transparent so road name labels show through
     const line = new google.maps.Polyline({
       path: points,
       geodesic: true,
       strokeColor: color,
-      strokeOpacity: 0.9,
-      strokeWeight: isActive ? 8 : 6,
+      strokeOpacity: isActive ? 0.75 : 0.55,
+      strokeWeight: isActive ? 6 : 4,
       map: map
     });
     line.addListener('click', () => selectStreet(street.id));
