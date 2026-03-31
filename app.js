@@ -2332,7 +2332,9 @@ function openStreetViewAt(lat, lng) {
 // ─── STREET VIEW SNAP ──────────────────────────────────────
 let _snapData = null; // { dataUrl, lat, lng, heading }
 
-async function snapStreetView() {
+let _snapIsRR = false;
+
+async function snapStreetView(isRR = false) {
   if (!streetViewPano) return;
   const pos = streetViewPano.getPosition();
   const pov = streetViewPano.getPov();
@@ -2345,10 +2347,14 @@ async function snapStreetView() {
   const dataUrl = await imageUrlToBase64(url);
   if (!dataUrl) { showToast('Could not fetch Street View image'); return; }
 
+  _snapIsRR = isRR;
   _snapData = { dataUrl, lat, lng, heading };
   document.getElementById('snap-preview').src = dataUrl;
   document.getElementById('snap-rating').value = '';
   document.getElementById('snap-note').value = '';
+  document.getElementById('snap-modal-title').textContent = isRR ? 'Snap R&R Photo' : 'Snap Photo';
+  document.getElementById('snap-save-btn').textContent = isRR ? 'Save as R&R' : 'Save to Street';
+  document.getElementById('snap-save-btn').style.background = isRR ? '#ef4444' : '';
   document.getElementById('snap-overlay').classList.remove('hidden');
 }
 
@@ -2366,8 +2372,7 @@ function saveSnap() {
   const rating = document.getElementById('snap-rating').value;
   const note = document.getElementById('snap-note').value.trim();
 
-  if (!street.photos) street.photos = [];
-  street.photos.push({
+  const photo = {
     id: crypto.randomUUID?.() || Date.now().toString(36),
     dataUrl: _snapData.dataUrl,
     lat: _snapData.lat,
@@ -2377,15 +2382,25 @@ function saveSnap() {
     rating: rating || null,
     source: 'streetview',
     takenAt: new Date().toISOString()
-  });
+  };
 
-  // If a rating was set, factor it into the street rating
-  if (rating) {
-    const manualRatings = street.photos.filter(p => p.rating);
-    const counts = {};
-    manualRatings.forEach(p => { counts[p.rating] = (counts[p.rating] || 0) + 1; });
-    const best = Object.entries(counts).sort((a, b) => b[1] - a[1])[0];
-    if (best) { street.rating = best[0]; }
+  if (_snapIsRR) {
+    // Save as R&R photo — red pin
+    if (!street.rrPhotos) street.rrPhotos = [];
+    street.rrPhotos.push(photo);
+  } else {
+    // Save as regular on-site photo — purple pin
+    if (!street.photos) street.photos = [];
+    street.photos.push(photo);
+
+    // If a rating was set, factor it into the street rating
+    if (rating) {
+      const manualRatings = street.photos.filter(p => p.rating);
+      const counts = {};
+      manualRatings.forEach(p => { counts[p.rating] = (counts[p.rating] || 0) + 1; });
+      const best = Object.entries(counts).sort((a, b) => b[1] - a[1])[0];
+      if (best) { street.rating = best[0]; }
+    }
   }
 
   saveStreets();
@@ -2394,7 +2409,8 @@ function saveSnap() {
   selectStreet(activeStreetId);
   document.getElementById('snap-overlay').classList.add('hidden');
   _snapData = null;
-  showToast('Photo saved to street');
+  _snapIsRR = false;
+  showToast(_snapIsRR ? 'R&R photo saved' : 'Photo saved to street');
 }
 
 function closeStreetViewPanel() {

@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>PaveScan</title>
-  <link rel="stylesheet" href="style.css?v=113">
+  <link rel="stylesheet" href="style.css?v=114">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 </head>
@@ -102,7 +102,8 @@
         <div id="streetview-pano"></div>
         <div class="sv-toolbar">
           <button id="btn-close-sv" class="btn-close-sv" onclick="closeStreetViewPanel()">&#8592; Back to Map</button>
-          <button class="btn-sv-snap" onclick="snapStreetView()" title="Snap this view as a photo">&#128247; Snap Photo</button>
+          <button class="btn-sv-snap" onclick="snapStreetView(false)" title="Snap this view as a photo">&#128247; Snap Photo</button>
+          <button class="btn-sv-snap btn-sv-snap-rr" onclick="snapStreetView(true)" title="Snap this view as an R&R photo">&#128247; Snap R&amp;R</button>
         </div>
       </div>
 
@@ -110,7 +111,7 @@
   <div id="snap-overlay" class="modal-overlay hidden" onclick="closeSnapModal(event)">
     <div class="modal snap-review-modal" onclick="event.stopPropagation()">
       <button class="btn-close" onclick="closeSnapModal()" style="position:absolute;top:10px;right:14px;">&times;</button>
-      <h3>Snap Photo</h3>
+      <h3 id="snap-modal-title">Snap Photo</h3>
       <img id="snap-preview" src="" alt="Snap preview" class="snap-preview-img">
       <div class="form-group" style="margin-top:12px">
         <label>Rating</label>
@@ -128,7 +129,7 @@
       </div>
       <div class="modal-actions">
         <button class="btn-secondary" onclick="closeSnapModal()">Cancel</button>
-        <button class="btn-primary" onclick="saveSnap()">Save to Street</button>
+        <button class="btn-primary" id="snap-save-btn" onclick="saveSnap()">Save to Street</button>
       </div>
     </div>
   </div>
@@ -219,7 +220,7 @@
   </div>
 
   <!-- ─── SCRIPTS ─────────────────────────────────────────── -->
-  <script src="app.js?v=113"></script>
+  <script src="app.js?v=114"></script>
   <script async defer
     src="https://maps.googleapis.com/maps/api/js?key=AIzaSyALUzyaUCMmtVah_gcnoe-g2VGeezsPkZ8&callback=initMap&loading=async&libraries=marker">
   </script>

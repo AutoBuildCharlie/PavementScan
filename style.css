@@ -618,6 +618,15 @@ body {
   border-color: var(--accent);
   color: var(--accent);
 }
+.btn-sv-snap-rr {
+  border-color: rgba(239,68,68,0.5);
+  color: #ef4444;
+}
+.btn-sv-snap-rr:hover {
+  background: rgba(239,68,68,0.15);
+  border-color: #ef4444;
+  color: #ef4444;
+}
 .snap-review-modal {
   max-width: 480px;
   width: 90%;
