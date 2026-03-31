@@ -1122,9 +1122,10 @@ function selectStreet(id) {
   map.panTo({ lat: street.lat, lng: street.lng });
   map.setZoom(18);
 
-  // If Street View is open, jump to this street
+  // If Street View is open and a DIFFERENT street was selected, move to it
   const svOpen = streetViewPano && !document.getElementById('streetview-panel').classList.contains('hidden');
-  if (svOpen) {
+  if (svOpen && street.id !== window._svLastStreetId) {
+    window._svLastStreetId = street.id;
     streetViewPano.setPosition({ lat: street.lat, lng: street.lng });
   }
 
@@ -1874,23 +1875,30 @@ function openStreetViewAt(lat, lng) {
   const panel = document.getElementById('streetview-panel');
   panel.classList.remove('hidden');
 
-  // Clean up old panorama + listener before creating new
-  if (svPositionListener) { google.maps.event.removeListener(svPositionListener); svPositionListener = null; }
-
-  streetViewPano = new google.maps.StreetViewPanorama(
-    document.getElementById('streetview-pano'), {
-      position: { lat, lng },
-      pov: { heading: 0, pitch: -5 },
-      zoom: 1,
-      motionTracking: false,
-      motionTrackingControl: false,
-      addressControl: true,
-      fullscreenControl: false
-    }
-  );
+  if (streetViewPano) {
+    // Reuse existing panorama — just move position, preserve heading
+    streetViewPano.setPosition({ lat, lng });
+  } else {
+    // First open — create the panorama
+    if (svPositionListener) { google.maps.event.removeListener(svPositionListener); svPositionListener = null; }
+    streetViewPano = new google.maps.StreetViewPanorama(
+      document.getElementById('streetview-pano'), {
+        position: { lat, lng },
+        pov: { heading: 0, pitch: -5 },
+        zoom: 0,
+        motionTracking: false,
+        motionTrackingControl: false,
+        addressControl: true,
+        fullscreenControl: false,
+        clickToGo: true,
+        linksControl: true
+      }
+    );
+  }
 
   // If a street is selected, refresh the detail panel to include mini map
   if (activeStreetId) {
+    window._svLastStreetId = activeStreetId;
     selectStreet(activeStreetId);
   }
 }
@@ -1900,6 +1908,7 @@ function closeStreetViewPanel() {
   document.getElementById('detail-panel').classList.add('hidden');
   if (svPositionListener) { google.maps.event.removeListener(svPositionListener); svPositionListener = null; }
   streetViewPano = null;
+  window._svLastStreetId = null;
   if (miniMapMarker) { removeFromMap(miniMapMarker); miniMapMarker = null; }
   miniMap = null;
   miniMapLines.forEach(l => removeFromMap(l));
