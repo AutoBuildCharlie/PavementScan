@@ -85,7 +85,6 @@ function initMap() {
     zoom: 12,
     mapTypeId: 'roadmap',
     mapId: 'f2e86140855a96ecc6c0576f',
-    colorScheme: 'DARK',
     disableDefaultUI: true,
     zoomControl: true,
     mapTypeControl: true,
