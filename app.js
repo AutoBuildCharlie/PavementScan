@@ -1488,7 +1488,7 @@ function selectStreet(id) {
         <button class="btn-edit-analysis" onclick="toggleEditAnalysis('${street.id}')" id="edit-analysis-btn">Edit</button>
       </h4>
       <div class="analysis-rating-summary">${ratingLabel(street.rating)} — ${ratingDescription(street.rating)}</div>
-      <div class="ai-analysis" id="analysis-display">${escHtml(street.analysis || 'No analysis available')}</div>
+      <div class="ai-analysis" id="analysis-display">${formatAnalysis(street.analysis)}</div>
       <div class="analysis-edit-area hidden" id="analysis-edit">
         <textarea id="analysis-textarea" class="analysis-textarea">${escHtml(street.analysis || '')}</textarea>
         <div class="analysis-edit-actions">
@@ -1975,6 +1975,68 @@ function escHtml(str) {
   if (!str) return '';
   return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+}
+
+function formatAnalysis(text) {
+  if (!text) return '<span class="text-dim">No analysis available</span>';
+
+  const lines = text.split('\n');
+  let html = '';
+
+  for (let i = 0; i < lines.length; i++) {
+    const raw = lines[i];
+    const line = raw.trim();
+    if (!line) { html += '<div class="analysis-spacer"></div>'; continue; }
+
+    // Numbered section header — e.g. "1. PHOTOS ANALYZED" or "2. WHAT I CAN SEE"
+    const sectionMatch = line.match(/^(\d+)\.\s+([A-Z][A-Z\s\/&']+)(:.*)?$/);
+    if (sectionMatch) {
+      const title = sectionMatch[2].trim();
+      const rest = sectionMatch[3] ? escHtml(sectionMatch[3].slice(1).trim()) : '';
+      html += `<div class="analysis-section-header">${escHtml(title)}${rest ? `<span class="analysis-section-value">${rest}</span>` : ''}</div>`;
+      continue;
+    }
+
+    // Level line — "Level: 3" or "7. Level: [3]"
+    const levelMatch = line.match(/Level:\s*\[?([1-4])\]?/i);
+    if (levelMatch) {
+      const lvl = levelMatch[1];
+      const colors = { '1': '#22c55e', '2': '#eab308', '3': '#f97316', '4': '#ef4444' };
+      const labels = { '1': 'Level 1 — Good', '2': 'Level 2 — Light cracks', '3': 'Level 3 — Heavy cracks', '4': 'Level 4 — Severe' };
+      html += `<div class="analysis-level-line" style="color:${colors[lvl]}">${labels[lvl]}</div>`;
+      continue;
+    }
+
+    // Photo ratings line
+    if (/^Photo\s+\d+:\s+\d/.test(line)) {
+      html += `<div class="analysis-photo-ratings">${escHtml(line)}</div>`;
+      continue;
+    }
+
+    // Flag lines — ⚠, 🌿, 🔴
+    if (line.includes('⚠') || line.includes('🌿') || line.includes('🔴')) {
+      const flagColor = line.includes('🌿') ? '#22c55e' : line.includes('🔴') ? '#ef4444' : '#f59e0b';
+      html += `<div class="analysis-flag" style="color:${flagColor}">${escHtml(line)}</div>`;
+      continue;
+    }
+
+    // Bullet point — starts with - or •
+    if (/^[-•]/.test(line)) {
+      html += `<div class="analysis-bullet">${escHtml(line.replace(/^[-•]\s*/, ''))}</div>`;
+      continue;
+    }
+
+    // "None detected." or plain result line
+    if (/^none detected/i.test(line)) {
+      html += `<div class="analysis-none">${escHtml(line)}</div>`;
+      continue;
+    }
+
+    // Default — plain line
+    html += `<div class="analysis-line">${escHtml(line)}</div>`;
+  }
+
+  return html;
 }
 
 function formatNumber(n) {
