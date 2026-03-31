@@ -2096,13 +2096,21 @@ async function saveHighlightedStreet(startPt, endPt) {
       });
     });
 
-    // Extract the road geometry points
+    // Extract the road geometry points + street name from the dominant step
     const leg = result.routes[0].legs[0];
     roadLengthFt = Math.round(leg.distance.value * 3.28084); // meters to feet
     roadPath = [];
+    // Find the step covering the most distance — that's the main street
+    let dominantStep = leg.steps[0];
     leg.steps.forEach(step => {
       step.path.forEach(p => roadPath.push({ lat: p.lat(), lng: p.lng() }));
+      if (step.distance.value > (dominantStep?.distance?.value || 0)) dominantStep = step;
     });
+    // Extract street name from the dominant step's HTML instructions e.g. "Head north on <b>W Judith Ln</b>"
+    if (dominantStep?.instructions) {
+      const match = dominantStep.instructions.match(/<b>([^<]+)<\/b>/i);
+      if (match) window._directionsStreetName = match[1].trim();
+    }
   } catch (e) {
     console.warn('Directions API fallback to straight line:', e);
   }
@@ -2122,7 +2130,13 @@ async function saveHighlightedStreet(startPt, endPt) {
   const street = {
     id: crypto.randomUUID?.() || Date.now().toString(36),
     name: (() => {
-      // Vote across start/mid/end — most common route name wins
+      // Directions API dominant step is most reliable — use it if available
+      if (window._directionsStreetName) {
+        const n = window._directionsStreetName;
+        window._directionsStreetName = null;
+        return n;
+      }
+      // Fallback: vote across start/mid/end geocodes
       const votes = [startGeo.route, midGeo.route, endGeo.route, roadInfo.name].filter(Boolean);
       const counts = {};
       votes.forEach(n => { counts[n] = (counts[n] || 0) + 1; });
