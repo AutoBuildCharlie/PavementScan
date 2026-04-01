@@ -1,4 +1,4 @@
-# PaveScan — Project Reference (CLAUDE.md)
+# PavementScan — Project Reference (CLAUDE.md)
 
 > **For AI use.** All project context lives here — no need to check external memory files.
 
@@ -35,7 +35,7 @@ A pavement assessment tool built for crack seal and slurry seal contractors (e.g
 
 ## 2. Live URL & Deployment
 
-- **Live:** https://autobuildcharlie.github.io/CrackingSealingEst/
+- **Live:** https://autobuildcharlie.github.io/PavementScan/
 - **Repo:** GitHub Pages — auto-deploys on push to `master`
 - **Deploy command:** `/git-deploy` or manual `git add . && git commit -m "..." && git push`
 - **Version tag convention:** bump version number in `index.html` on `<link rel="stylesheet">` and `<script src="app.js">` query strings (e.g. `?v=142`)
@@ -45,7 +45,7 @@ A pavement assessment tool built for crack seal and slurry seal contractors (e.g
 ## 3. File Structure
 
 ```
-CrackingSealingEst/
+PavementScan/
 ├── index.html       — All HTML: login, header, modals, panels, lightbox
 ├── app.js           — All JavaScript (~3940 lines): map, AI, data, UI
 ├── style.css        — All CSS: dark theme, layout, components
