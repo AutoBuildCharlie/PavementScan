@@ -94,8 +94,8 @@ body {
   font-family: 'Inter', system-ui, sans-serif;
   background: var(--bg-dark);
   color: var(--text);
-  min-height: 100vh;
-  overflow: auto;
+  height: 100vh;
+  overflow: hidden;
 }
 ::-webkit-scrollbar { width: 5px; }
 ::-webkit-scrollbar-track { background: transparent; }
@@ -157,8 +157,8 @@ body {
 /* ─── MAIN LAYOUT ─────────────────────────────────────────── */
 #app-main {
   display: flex;
-  min-height: calc(100vh - 52px);
-  overflow: auto;
+  height: calc(100vh - 52px);
+  overflow: hidden;
 }
 
 /* ─── STREET PANEL (LEFT) ─────────────────────────────────── */
@@ -169,7 +169,8 @@ body {
   border-right: 1px solid var(--border);
   display: flex;
   flex-direction: column;
-  overflow: hidden;
+  overflow-y: auto;
+  height: 100%;
 }
 /* ─── PROJECT SELECTOR ─────────────────────────────────────── */
 .project-bar {
