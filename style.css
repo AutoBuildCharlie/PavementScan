@@ -580,7 +580,32 @@ body {
   box-shadow: 0 0 12px rgba(249,115,22,0.5);
   background: rgba(249,115,22,0.15);
 }
-.qa-worker svg { display: block; margin: 0 auto; }
+.qa-worker svg { display: block; margin: 0 auto; animation: worker-bob 2s ease-in-out infinite; }
+/* Idle bob */
+@keyframes worker-bob {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-3px); }
+}
+/* Left arm wave */
+.worker-arm-l {
+  transform-box: fill-box;
+  transform-origin: 0% 0%;
+  animation: arm-wave 1.2s ease-in-out infinite;
+}
+@keyframes arm-wave {
+  0%, 100% { transform: rotate(0deg); }
+  50% { transform: rotate(-40deg); }
+}
+/* Ghost dangle while dragging */
+.worker-ghost-inner {
+  animation: worker-dangle 0.45s ease-in-out infinite;
+  transform-origin: 50% 0%;
+  display: block;
+}
+@keyframes worker-dangle {
+  0%, 100% { transform: rotate(-6deg); }
+  50% { transform: rotate(6deg); }
+}
 .qa-photo {
   background: rgba(168,85,247,0.1);
   color: #a855f7;

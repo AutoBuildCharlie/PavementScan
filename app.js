@@ -2987,7 +2987,7 @@ function initWorkerDrag() {
     // Ghost figure that follows the cursor, feet at cursor tip
     _workerGhost = document.createElement('div');
     _workerGhost.id = 'worker-ghost';
-    _workerGhost.innerHTML = `<svg width="44" height="64" viewBox="0 0 22 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+    _workerGhost.innerHTML = `<div class="worker-ghost-inner"><svg width="44" height="64" viewBox="0 0 22 32" fill="none" xmlns="http://www.w3.org/2000/svg">
       <ellipse cx="11" cy="5" rx="5.5" ry="2.5" fill="#f97316"/>
       <rect x="5.5" y="6.5" width="11" height="1.5" rx="0.75" fill="#ea580c"/>
       <circle cx="11" cy="12" r="3.8" fill="#fde68a"/>
@@ -2997,7 +2997,7 @@ function initWorkerDrag() {
       <line x1="15" y1="18" x2="21" y2="22" stroke="#fde68a" stroke-width="1.8" stroke-linecap="round"/>
       <line x1="9.5" y1="24" x2="7" y2="31" stroke="#1f2937" stroke-width="1.8" stroke-linecap="round"/>
       <line x1="12.5" y1="24" x2="15" y2="31" stroke="#1f2937" stroke-width="1.8" stroke-linecap="round"/>
-    </svg>`;
+    </svg></div>`;
     Object.assign(_workerGhost.style, {
       position: 'fixed',
       pointerEvents: 'none',
