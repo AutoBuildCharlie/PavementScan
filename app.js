@@ -331,6 +331,10 @@ function renderProjectSelector() {
           <span style="font-size:9px;color:var(--text-dim)">ft</span>
         </div>
       </div>` : ''}
+      <div class="toggle-pill" onclick="toggleLaneLayout()" title="${activeProject.detectLaneLayout ? 'Lane Layout detection ON — click to turn off' : 'Lane Layout detection OFF — click to turn on'}">
+        <span class="toggle-label">Lane Layout</span>
+        <span class="toggle-value ${activeProject.detectLaneLayout ? 'toggle-on' : 'toggle-off'}">${activeProject.detectLaneLayout ? 'ON' : 'OFF'}</span>
+      </div>
       <div class="toggle-pill" onclick="cycleProjectType()" title="Project type — click to change">
         <span class="toggle-label">Project Type</span>
         <span class="toggle-value toggle-on">${activeProject.type === 'slurry' ? 'Slurry Seal' : activeProject.type === 'both' ? 'Both' : 'Crack Seal'}</span>
@@ -380,6 +384,13 @@ function renderProjectSelector() {
     </div>
     </div>
   `;
+}
+
+function toggleLaneLayout() {
+  activeProject.detectLaneLayout = !activeProject.detectLaneLayout;
+  saveProjects();
+  renderProjectSelector();
+  showToast(activeProject.detectLaneLayout ? 'Lane Layout ON' : 'Lane Layout OFF');
 }
 
 function toggleRR() {
@@ -679,7 +690,7 @@ function confirmStreetName() {
       street.ravelingAlert = analysis.ravelingAlert || false; street.ravelingNotes = analysis.ravelingNotes || '';
       street.rrAlert = analysis.rrAlert || false; street.rrNotes = analysis.rrNotes || '';
       street.scannedAt = new Date().toISOString();
-      if (isArterialStreet(street)) {
+      if (activeProject.detectLaneLayout && isArterialStreet(street)) {
         const layout = await analyzeLaneLayout(street);
         if (layout) street.laneLayout = layout;
       }
@@ -902,7 +913,7 @@ async function saveStreet() {
     street.rrAlert = analysis.rrAlert || false;
     street.rrNotes = analysis.rrNotes || '';
     street.scannedAt = new Date().toISOString();
-    if (isArterialStreet(street)) {
+    if (activeProject.detectLaneLayout && isArterialStreet(street)) {
       showScanModal('Analyzing lane layout...');
       const layout = await analyzeLaneLayout(street);
       if (layout) street.laneLayout = layout;
@@ -2323,7 +2334,7 @@ async function rescanStreet(id) {
     street.rrAlert = analysis.rrAlert || false;
     street.rrNotes = analysis.rrNotes || '';
     street.scannedAt = new Date().toISOString();
-    if (isArterialStreet(street)) {
+    if (activeProject.detectLaneLayout && isArterialStreet(street)) {
       showScanModal('Analyzing lane layout...');
       const layout = await analyzeLaneLayout(street);
       if (layout) street.laneLayout = layout;
