@@ -2477,14 +2477,15 @@ function lightboxSetRating(value) {
   if (!streetId) return;
   const p = _lbPhotos[_lbIdx];
   if (!p) return;
+  const oldRating = p.rating; // capture before overwrite
   p.rating = value || null;
   if (_lbPhotoArray === 'scanPhotos') {
     setPhotoRating(streetId, _lbIdx, value);
-    // Also update the street's overall rating and trigger calibration
     if (value) {
       const street = streets.find(s => s.id === streetId);
-      if (street && street.aiRating && street.aiRating !== value) {
-        logCalibrationCorrection(street, street.aiRating, value);
+      if (street && oldRating && oldRating !== value) {
+        logCalibrationCorrection(street, oldRating, value);
+        showReasonPrompt();
       }
       if (street) {
         street.rating = value;
