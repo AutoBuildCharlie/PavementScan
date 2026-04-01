@@ -2637,15 +2637,8 @@ function formatAnalysis(text) {
     const line = raw.trim();
     if (!line) { html += '<div class="analysis-spacer"></div>'; continue; }
 
-    // Level line — check BEFORE section header so "7. Level: [3]" is caught here first
-    const levelMatch = line.match(/Level:\s*\[?([1-4])\]?/i);
-    if (levelMatch) {
-      const lvl = levelMatch[1];
-      const colors = { '1': '#22c55e', '2': '#eab308', '3': '#f97316', '4': '#ef4444' };
-      const labels = { '1': 'Level 1 — Good', '2': 'Level 2 — Light cracks', '3': 'Level 3 — Heavy cracks', '4': 'Level 4 — Severe' };
-      html += `<div class="analysis-level-line" style="color:${colors[lvl]}">${labels[lvl]}</div>`;
-      continue;
-    }
+    // Level line — skip it, rating is already shown at the top of the panel
+    if (line.match(/Level:\s*\[?([1-4])\]?/i) || line.match(/^Level\s*[1-4]\s*[—\-]/i)) continue;
 
     // Numbered section header — e.g. "1. PHOTOS ANALYZED" or "2. WHAT I CAN SEE"
     const sectionMatch = line.match(/^(\d+)\.\s+([A-Z][A-Z\s\/&']+)(:.*)?$/);
