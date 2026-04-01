@@ -258,6 +258,15 @@ function renameProject(id) {
 }
 
 let _settingsCollapsed = false;
+let _advancedOpen = false;
+
+function toggleAdvanced() {
+  _advancedOpen = !_advancedOpen;
+  const body = document.getElementById('advanced-body');
+  const arrow = document.getElementById('advanced-arrow');
+  if (body) body.classList.toggle('hidden', !_advancedOpen);
+  if (arrow) arrow.textContent = _advancedOpen ? '▾' : '▸';
+}
 
 function toggleSettingsCollapse() {
   _settingsCollapsed = !_settingsCollapsed;
@@ -321,21 +330,27 @@ function renderProjectSelector() {
         <span class="toggle-value toggle-on">${activeProject.type === 'slurry' ? 'Slurry Seal' : activeProject.type === 'both' ? 'Both' : 'Crack Seal'}</span>
       </div>
     </div>
-    <div class="ai-notes-row">
-      <span class="ai-notes-label">AI Instructions</span>
-      <textarea class="ai-notes-input" placeholder="e.g. Older neighborhood — focus on longitudinal cracking near gutters" onchange="saveAiNotes(this.value)">${escHtml(activeProject.aiNotes || '')}</textarea>
+    <div class="advanced-toggle-bar" onclick="toggleAdvanced()">
+      <span>Advanced</span>
+      <span id="advanced-arrow">${_advancedOpen ? '▾' : '▸'}</span>
     </div>
-    <div class="calib-bar">
-      <span class="calib-bar-label">
-        ${activeProject.calibrationRules?.length > 0
-          ? `&#10003; ${activeProject.calibrationRules.length} calibration rule${activeProject.calibrationRules.length > 1 ? 's' : ''} active`
-          : activeProject.calibrationLog?.length > 0
-            ? `${activeProject.calibrationLog.length} correction${activeProject.calibrationLog.length > 1 ? 's' : ''} logged`
-            : 'Calibration — no corrections yet'}
-      </span>
-      <div class="calib-bar-actions">
-        ${activeProject.calibrationLog?.length > 0 ? `<button class="btn-calib-refine" onclick="openRefineAIModal()">Refine AI</button>` : ''}
-        ${activeProject.calibrationRules?.length > 0 ? `<button class="btn-calib-clear" onclick="clearCalibrationRules()">Clear</button>` : ''}
+    <div id="advanced-body" ${_advancedOpen ? '' : 'class="hidden"'}>
+      <div class="ai-notes-row">
+        <span class="ai-notes-label">AI Instructions</span>
+        <textarea class="ai-notes-input" placeholder="e.g. Older neighborhood — focus on longitudinal cracking near gutters" onchange="saveAiNotes(this.value)">${escHtml(activeProject.aiNotes || '')}</textarea>
+      </div>
+      <div class="calib-bar">
+        <span class="calib-bar-label">
+          ${activeProject.calibrationRules?.length > 0
+            ? `&#10003; ${activeProject.calibrationRules.length} calibration rule${activeProject.calibrationRules.length > 1 ? 's' : ''} active`
+            : activeProject.calibrationLog?.length > 0
+              ? `${activeProject.calibrationLog.length} correction${activeProject.calibrationLog.length > 1 ? 's' : ''} logged`
+              : 'Calibration — no corrections yet'}
+        </span>
+        <div class="calib-bar-actions">
+          ${activeProject.calibrationLog?.length > 0 ? `<button class="btn-calib-refine" onclick="openRefineAIModal()">Refine AI</button>` : ''}
+          ${activeProject.calibrationRules?.length > 0 ? `<button class="btn-calib-clear" onclick="clearCalibrationRules()">Clear</button>` : ''}
+        </div>
       </div>
     </div>
     </div>
