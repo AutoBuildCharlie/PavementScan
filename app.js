@@ -308,13 +308,6 @@ function renderProjectSelector() {
         <span class="toggle-label">AI Analysis</span>
         <span class="toggle-value ${activeProject.aiEnabled !== false ? 'toggle-on' : 'toggle-off'}">${activeProject.aiEnabled !== false ? 'ON' : 'OFF'}</span>
       </div>
-      <div class="toggle-pill model-pill" title="AI model used for scanning">
-        <span class="toggle-label">Scan Model</span>
-        <select class="model-select" onchange="setScanModel(this.value)" onclick="event.stopPropagation()">
-          <option value="gpt-4o" ${(activeProject.scanModel || 'gpt-4o') === 'gpt-4o' ? 'selected' : ''}>GPT-4o</option>
-          <option value="gemini-2.0-flash" ${activeProject.scanModel === 'gemini-2.0-flash' ? 'selected' : ''}>Gemini Flash</option>
-        </select>
-      </div>
       <div class="toggle-pill" onclick="toggleRR()" title="${activeProject.detectRR ? 'Remove & Replace detection ON — click to turn off' : 'Remove & Replace detection OFF — click to turn on'}">
         <span class="toggle-label">R&amp;R Detection</span>
         <span class="toggle-value ${activeProject.detectRR ? 'toggle-on' : 'toggle-off'}">${activeProject.detectRR ? 'ON' : 'OFF'}</span>
@@ -364,6 +357,13 @@ function renderProjectSelector() {
         </div>
       </div>
       <div class="photo-settings-default">Default: 200 ft · 6 photos</div>
+      <div class="toggle-pill model-pill" style="margin-top:6px" title="AI model used for scanning">
+        <span class="toggle-label">Scan Model</span>
+        <select class="model-select" onchange="setScanModel(this.value)" onclick="event.stopPropagation()">
+          <option value="gpt-4o" ${(activeProject.scanModel || 'gpt-4o') === 'gpt-4o' ? 'selected' : ''}>GPT-4o</option>
+          <option value="gemini-2.0-flash" ${activeProject.scanModel === 'gemini-2.0-flash' ? 'selected' : ''}>Gemini Flash</option>
+        </select>
+      </div>
       <div class="ai-notes-row">
         <span class="ai-notes-label">AI Instructions</span>
         <textarea class="ai-notes-input" placeholder="e.g. Older neighborhood — focus on longitudinal cracking near gutters" onchange="saveAiNotes(this.value)">${escHtml(activeProject.aiNotes || '')}</textarea>
