@@ -408,14 +408,16 @@ function saveAiNotes(value) {
 }
 
 function savePhotoInterval(value) {
-  activeProject.photoInterval = Math.max(100, parseInt(value) || 200);
+  activeProject.photoInterval = Math.max(100, Math.min(1000, parseInt(value) || 200));
   saveProjects();
+  renderProjectSelector();
   showToast(`Photo every ${activeProject.photoInterval} ft`);
 }
 
 function saveMaxPhotos(value) {
   activeProject.maxPhotos = Math.max(2, Math.min(12, parseInt(value) || 6));
   saveProjects();
+  renderProjectSelector();
   showToast(`Max ${activeProject.maxPhotos} photos per street`);
 }
 
