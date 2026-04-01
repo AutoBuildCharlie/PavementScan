@@ -351,6 +351,7 @@ function renderProjectSelector() {
           <button class="photo-step-btn" onclick="saveMaxPhotos(${(activeProject.maxPhotos||6)+1})">+</button>
         </div>
       </div>
+      <div class="photo-settings-default">Default: 200 ft · 6 photos</div>
       <div class="ai-notes-row">
         <span class="ai-notes-label">AI Instructions</span>
         <textarea class="ai-notes-input" placeholder="e.g. Older neighborhood — focus on longitudinal cracking near gutters" onchange="saveAiNotes(this.value)">${escHtml(activeProject.aiNotes || '')}</textarea>
