@@ -1619,14 +1619,24 @@ function selectStreet(id) {
           const indices = extractWeedPhotoIndices(street.weedNotes);
           const photos = indices.map(i => street.scanPhotos[i]).filter(p => p?.lat);
           if (!photos.length) return '';
-          return `<div class="weed-locations">${photos.map(p =>
-            `<button class="weed-jump-btn" onclick="map.panTo({lat:${p.lat},lng:${p.lng}});map.setZoom(19)" title="Jump to ${escHtml(p.label)}">📍 ${escHtml(p.label)}</button>`
-          ).join('')}</div>`;
+          return `<div class="weed-locations">${photos.map((p, pi) => {
+            const photoIdx = indices[pi];
+            return `<button class="weed-jump-btn" onclick="map.panTo({lat:${p.lat},lng:${p.lng}});map.setZoom(19);openLightbox(streets.find(s=>s.id==='${street.id}').scanPhotos,${photoIdx},'${street.id}')" title="Jump to photo location">📍 ${escHtml(p.label)}</button>`;
+          }).join('')}</div>`;
         })() : ''}
       </div>` : ''}
       ${street.ravelingAlert ? `<div class="detail-weed-warn" style="border-color:rgba(245,158,11,0.3);background:rgba(245,158,11,0.08)">
         ⚠ Raveling detected on this street — surface aggregate loss noted
         ${street.ravelingNotes ? `<div class="weed-notes">${escHtml(street.ravelingNotes)}</div>` : ''}
+        ${(street.ravelingNotes && street.scanPhotos?.length) ? (() => {
+          const indices = extractWeedPhotoIndices(street.ravelingNotes);
+          const photos = indices.map(i => street.scanPhotos[i]).filter(p => p?.lat);
+          if (!photos.length) return '';
+          return `<div class="weed-locations">${photos.map((p, pi) => {
+            const photoIdx = indices[pi];
+            return `<button class="weed-jump-btn" style="background:rgba(245,158,11,0.15);border-color:rgba(245,158,11,0.4);color:#f59e0b" onclick="map.panTo({lat:${p.lat},lng:${p.lng}});map.setZoom(19);openLightbox(streets.find(s=>s.id==='${street.id}').scanPhotos,${photoIdx},'${street.id}')" title="Jump to photo location">📍 ${escHtml(p.label)}</button>`;
+          }).join('')}</div>`;
+        })() : ''}
       </div>` : ''}
       ${street.rrAlert ? `<div class="detail-weed-warn" style="border-color:rgba(239,68,68,0.4);background:rgba(239,68,68,0.08)">
         🔴 Remove &amp; Replace needed — structural failure detected
