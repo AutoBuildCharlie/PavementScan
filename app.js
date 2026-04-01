@@ -678,7 +678,7 @@ function confirmStreetName() {
       street.weedAlert = analysis.weedAlert || false; street.weedNotes = analysis.weedNotes || '';
       street.ravelingAlert = analysis.ravelingAlert || false; street.ravelingNotes = analysis.ravelingNotes || '';
       street.rrAlert = analysis.rrAlert || false; street.rrNotes = analysis.rrNotes || '';
-      street.scanPhotos = analysis.photos || []; street.scannedAt = new Date().toISOString();
+      street.scannedAt = new Date().toISOString();
       if (isArterialStreet(street)) {
         const layout = await analyzeLaneLayout(street);
         if (layout) street.laneLayout = layout;
@@ -1386,7 +1386,7 @@ Only report what you can clearly see. Use null for anything unclear.`
     if (!res.ok) return null;
     const data = await res.json();
     const text = data.choices?.[0]?.message?.content || '';
-    const jsonMatch = text.match(/\{[\s\S]*?\}/);
+    const jsonMatch = text.match(/\{[\s\S]*\}/);
     if (!jsonMatch) return null;
     return JSON.parse(jsonMatch[0]);
   } catch (e) {
