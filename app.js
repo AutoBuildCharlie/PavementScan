@@ -1880,7 +1880,11 @@ function logCalibrationCorrection(street, aiRating, calRating) {
 
 function showReasonPrompt() {
   if (!_pendingCorrection) return;
-  const container = document.getElementById('calibration-reason-prompt');
+  // Use lightbox container if lightbox is open, otherwise detail panel
+  const lightbox = document.getElementById('photo-lightbox');
+  const lightboxOpen = lightbox && !lightbox.classList.contains('hidden');
+  const containerId = lightboxOpen ? 'lightbox-calibration-reason' : 'calibration-reason-prompt';
+  const container = document.getElementById(containerId);
   if (!container) return;
   const { aiRating, calRating } = _pendingCorrection;
   container.innerHTML = `
@@ -1901,8 +1905,10 @@ function showReasonPrompt() {
 
 function dismissReasonPrompt() {
   _pendingCorrection = null;
-  const container = document.getElementById('calibration-reason-prompt');
-  if (container) { container.innerHTML = ''; container.classList.add('hidden'); }
+  ['calibration-reason-prompt', 'lightbox-calibration-reason'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) { el.innerHTML = ''; el.classList.add('hidden'); }
+  });
 }
 
 function saveCalibrationReason() {

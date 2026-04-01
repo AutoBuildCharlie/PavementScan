@@ -95,7 +95,7 @@ body {
   background: var(--bg-dark);
   color: var(--text);
   min-height: 100vh;
-  overflow: hidden;
+  overflow: auto;
 }
 ::-webkit-scrollbar { width: 5px; }
 ::-webkit-scrollbar-track { background: transparent; }
@@ -157,8 +157,8 @@ body {
 /* ─── MAIN LAYOUT ─────────────────────────────────────────── */
 #app-main {
   display: flex;
-  height: calc(100vh - 52px);
-  overflow: hidden;
+  min-height: calc(100vh - 52px);
+  overflow: auto;
 }
 
 /* ─── STREET PANEL (LEFT) ─────────────────────────────────── */
