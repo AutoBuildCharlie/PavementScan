@@ -3791,7 +3791,7 @@ function drawAllHighlights() {
       geodesic: true,
       strokeColor: color,
       strokeOpacity: isActive ? 0.35 : 0.32,
-      strokeWeight: isActive ? 9 : 5,
+      strokeWeight: isActive ? 6 : 5,
       map: map,
       zIndex: isActive ? 20 : 5
     });
@@ -3864,7 +3864,7 @@ function drawAllHighlights() {
         geodesic: true,
         strokeColor: color,
         strokeOpacity: 0.1,
-        strokeWeight: 30,
+        strokeWeight: 20,
         map: map,
         zIndex: 17
       });
@@ -3877,7 +3877,7 @@ function drawAllHighlights() {
         geodesic: true,
         strokeColor: '#ffffff',
         strokeOpacity: 0.15,
-        strokeWeight: 18,
+        strokeWeight: 12,
         map: map,
         zIndex: 18
       });
@@ -3887,7 +3887,7 @@ function drawAllHighlights() {
       // Animate both layers with a sine wave
       let _pulseT = 0;
       _animInterval = setInterval(() => {
-        _pulseT += 0.045;
+        _pulseT += 0.0225;
         const pulse = (Math.sin(_pulseT) + 1) / 2; // smooth 0 → 1
         outerGlow.setOptions({ strokeOpacity: 0.08 + pulse * 0.52 });
         innerGlow.setOptions({ strokeOpacity: 0.1  + pulse * 0.5  });
