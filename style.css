@@ -411,6 +411,10 @@ body {
   font-size: 14px;
   font-weight: 600;
 }
+.panel-header .btn-primary {
+  padding: 5px 10px;
+  font-size: 11px;
+}
 /* ─── SEARCH BAR ──────────────────────────────────────────── */
 .search-bar {
   display: flex;
