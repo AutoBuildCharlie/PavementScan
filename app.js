@@ -3776,8 +3776,8 @@ function drawAllHighlights() {
       path: points,
       geodesic: true,
       strokeColor: color,
-      strokeOpacity: isActive ? 0.95 : 0.32,
-      strokeWeight: isActive ? 11 : 5,
+      strokeOpacity: isActive ? 0.35 : 0.32,
+      strokeWeight: isActive ? 9 : 5,
       map: map,
       zIndex: isActive ? 20 : 5
     });
