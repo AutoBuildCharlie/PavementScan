@@ -2988,13 +2988,13 @@ function initWorkerDrag() {
     _workerGhost = document.createElement('div');
     _workerGhost.id = 'worker-ghost';
     _workerGhost.innerHTML = `<svg width="44" height="64" viewBox="0 0 22 32" fill="none" xmlns="http://www.w3.org/2000/svg">
-      <ellipse cx="11" cy="5.5" rx="9.5" ry="3.5" fill="#f97316"/>
-      <rect x="3" y="7.5" width="16" height="2" rx="1" fill="#ea580c"/>
-      <circle cx="11" cy="13" r="4" fill="#fde68a"/>
-      <rect x="7" y="17" width="8" height="7" rx="1.5" fill="#f97316"/>
-      <rect x="7" y="19.5" width="8" height="1.2" fill="#fef08a" opacity="0.8"/>
-      <line x1="7" y1="19" x2="1" y2="23" stroke="#fde68a" stroke-width="1.8" stroke-linecap="round"/>
-      <line x1="15" y1="19" x2="21" y2="23" stroke="#fde68a" stroke-width="1.8" stroke-linecap="round"/>
+      <ellipse cx="11" cy="5" rx="5.5" ry="2.5" fill="#f97316"/>
+      <rect x="5.5" y="6.5" width="11" height="1.5" rx="0.75" fill="#ea580c"/>
+      <circle cx="11" cy="12" r="3.8" fill="#fde68a"/>
+      <rect x="7" y="16" width="8" height="8" rx="1.5" fill="#f97316"/>
+      <rect x="7" y="18.5" width="8" height="1.2" fill="#fef08a" opacity="0.8"/>
+      <line x1="7" y1="18" x2="1" y2="22" stroke="#fde68a" stroke-width="1.8" stroke-linecap="round"/>
+      <line x1="15" y1="18" x2="21" y2="22" stroke="#fde68a" stroke-width="1.8" stroke-linecap="round"/>
       <line x1="9.5" y1="24" x2="7" y2="31" stroke="#1f2937" stroke-width="1.8" stroke-linecap="round"/>
       <line x1="12.5" y1="24" x2="15" y2="31" stroke="#1f2937" stroke-width="1.8" stroke-linecap="round"/>
     </svg>`;
