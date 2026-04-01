@@ -99,6 +99,11 @@ function initMap() {
   // Map click listener
   map.addListener('click', (e) => handleMapClick(e.latLng));
 
+  // Right-click cancels drawing mode
+  map.addListener('rightclick', () => {
+    if (drawingMode) { stopDrawingMode(); showToast('Pin cancelled'); }
+  });
+
   renderProjectSelector();
   renderStreetList();
   placeAllMarkers();
