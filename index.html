@@ -200,12 +200,12 @@
         <button class="btn-primary" style="margin-top:6px;width:100%;font-size:12px;padding:7px" onclick="lightboxSaveNote()">Save Note</button>
       </div>
       <div class="lightbox-nav">
+        <button id="lightbox-retake" class="lightbox-retake hidden" onclick="lightboxRetakePhoto()" title="Retake Photo">&#8635;</button>
         <button onclick="lightboxNav(-1)">&#8592;</button>
         <span id="lightbox-count"></span>
         <button onclick="lightboxNav(1)">&#8594;</button>
+        <button id="lightbox-delete" class="lightbox-delete hidden" onclick="lightboxDeletePhoto()" title="Delete Photo">&#128465;</button>
       </div>
-      <button id="lightbox-retake" class="lightbox-retake hidden" onclick="lightboxRetakePhoto()">&#8635; Retake Photo</button>
-      <button id="lightbox-delete" class="lightbox-delete hidden" onclick="lightboxDeletePhoto()">&#128465; Delete Photo</button>
     </div>
   </div>
 
