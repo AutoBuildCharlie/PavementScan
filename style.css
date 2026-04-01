@@ -240,6 +240,36 @@ body {
   user-select: none;
 }
 .advanced-toggle-bar:hover { color: var(--accent); }
+.photo-settings-row {
+  display: flex;
+  gap: 8px;
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--border);
+}
+.photo-setting {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  flex: 1;
+}
+.photo-setting-label {
+  font-size: 10px;
+  color: var(--text-dim);
+  white-space: nowrap;
+}
+.photo-setting-input {
+  width: 52px;
+  background: var(--bg-dark);
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  color: var(--accent);
+  font-size: 11px;
+  font-weight: 700;
+  padding: 3px 5px;
+  text-align: center;
+}
+.photo-setting-input:focus { outline: none; border-color: var(--accent); }
+.photo-setting-unit { font-size: 10px; color: var(--text-dim); }
 
 .project-toggles {
   display: flex;

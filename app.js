@@ -192,6 +192,8 @@ function createProject(name, type = 'crack-seal') {
     aiEnabled: true, // AI analysis + photo capture on by default
     scanModel: 'gpt-4o', // AI model used for scanning
     aiNotes: '', // custom instructions injected into every AI scan prompt
+    photoInterval: 200, // ft between mid-point photos
+    maxPhotos: 6,       // max total photos per street
     calibrationLog: [], // corrections Cal made to AI ratings (max 50)
     calibrationRules: [], // approved rules from Refine AI — injected into prompts
     streets: [],
@@ -335,6 +337,17 @@ function renderProjectSelector() {
       <span id="advanced-arrow">${_advancedOpen ? '▾' : '▸'}</span>
     </div>
     <div id="advanced-body" ${_advancedOpen ? '' : 'class="hidden"'}>
+      <div class="photo-settings-row">
+        <div class="photo-setting">
+          <span class="photo-setting-label">Photo every</span>
+          <input type="number" class="photo-setting-input" value="${activeProject.photoInterval || 200}" min="100" max="1000" step="50" onchange="savePhotoInterval(this.value)">
+          <span class="photo-setting-unit">ft</span>
+        </div>
+        <div class="photo-setting">
+          <span class="photo-setting-label">Max photos</span>
+          <input type="number" class="photo-setting-input" value="${activeProject.maxPhotos || 6}" min="2" max="12" step="1" onchange="saveMaxPhotos(this.value)">
+        </div>
+      </div>
       <div class="ai-notes-row">
         <span class="ai-notes-label">AI Instructions</span>
         <textarea class="ai-notes-input" placeholder="e.g. Older neighborhood — focus on longitudinal cracking near gutters" onchange="saveAiNotes(this.value)">${escHtml(activeProject.aiNotes || '')}</textarea>
@@ -388,6 +401,18 @@ function saveAiNotes(value) {
   activeProject.aiNotes = value.trim();
   saveProjects();
   if (activeProject.aiNotes) showToast('AI instructions saved');
+}
+
+function savePhotoInterval(value) {
+  activeProject.photoInterval = Math.max(100, parseInt(value) || 200);
+  saveProjects();
+  showToast(`Photo every ${activeProject.photoInterval} ft`);
+}
+
+function saveMaxPhotos(value) {
+  activeProject.maxPhotos = Math.max(2, Math.min(12, parseInt(value) || 6));
+  saveProjects();
+  showToast(`Max ${activeProject.maxPhotos} photos per street`);
 }
 
 // ─── GLOBAL SETTINGS ───────────────────────────────────────
@@ -483,6 +508,8 @@ function migrateOldData() {
     if (p.aiNotes === undefined) { p.aiNotes = ''; changed = true; }
     if (!p.calibrationLog) { p.calibrationLog = []; changed = true; }
     if (!p.calibrationRules) { p.calibrationRules = []; changed = true; }
+    if (!p.photoInterval) { p.photoInterval = 200; changed = true; }
+    if (!p.maxPhotos) { p.maxPhotos = 6; changed = true; }
   });
   if (changed) {
     streets = activeProject.streets;
@@ -930,40 +957,23 @@ function getSamplePoints(street) {
 
   const points = [];
 
-  if (isMainStreet(street)) {
-    // ── MAIN STREET — center line, 1 photo every 400ft ─────
-    points.push({ ...startInset, heading: headingForward, label: 'Start (looking in)' });
+  const interval = activeProject?.photoInterval || 200;
+  const maxMid = Math.max(1, (activeProject?.maxPhotos || 6) - 2); // subtract start + end
 
-    const midCount = Math.min(6, Math.floor(length / 400));
-    for (let i = 1; i <= midCount; i++) {
-      const t = i / (midCount + 1);
-      points.push({
-        lat: startPt.lat + (endPt.lat - startPt.lat) * t,
-        lng: startPt.lng + (endPt.lng - startPt.lng) * t,
-        heading: headingForward,
-        label: `Mid-point ${i}`
-      });
-    }
+  points.push({ ...startInset, heading: headingForward, label: 'Start (looking in)' });
 
-    points.push({ ...endInset, heading: headingBackward, label: 'End (looking in)' });
-
-  } else {
-    // ── RESIDENTIAL — 1 photo per 200ft, start + end only ──
-    points.push({ ...startInset, heading: headingForward, label: 'Start (looking in)' });
-
-    const midCount = Math.min(5, Math.floor(length / 200));
-    for (let i = 1; i <= midCount; i++) {
-      const t = i / (midCount + 1);
-      points.push({
-        lat: startPt.lat + (endPt.lat - startPt.lat) * t,
-        lng: startPt.lng + (endPt.lng - startPt.lng) * t,
-        heading: headingForward,
-        label: `Mid-point ${i}`
-      });
-    }
-
-    points.push({ ...endInset, heading: headingBackward, label: 'End (looking in)' });
+  const midCount = Math.min(maxMid, Math.floor(length / interval));
+  for (let i = 1; i <= midCount; i++) {
+    const t = i / (midCount + 1);
+    points.push({
+      lat: startPt.lat + (endPt.lat - startPt.lat) * t,
+      lng: startPt.lng + (endPt.lng - startPt.lng) * t,
+      heading: headingForward,
+      label: `Mid-point ${i}`
+    });
   }
+
+  points.push({ ...endInset, heading: headingBackward, label: 'End (looking in)' });
 
   return points;
 }
