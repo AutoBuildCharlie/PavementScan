@@ -435,6 +435,7 @@ body {
   overflow: hidden;
 }
 .toggle-pill:hover { border-color: var(--accent); }
+.toggle-pill-full { width: 100%; }
 .model-pill { flex: 1 1 100%; }
 .toggle-label {
   color: var(--text-dim);

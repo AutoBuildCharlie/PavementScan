@@ -335,7 +335,7 @@ function renderProjectSelector() {
         <span class="toggle-label">Lane Layout</span>
         <span class="toggle-value ${activeProject.detectLaneLayout ? 'toggle-on' : 'toggle-off'}">${activeProject.detectLaneLayout ? 'ON' : 'OFF'}</span>
       </div>
-      <div class="toggle-pill" onclick="cycleProjectType()" title="Project type — click to change">
+      <div class="toggle-pill toggle-pill-full" onclick="cycleProjectType()" title="Project type — click to change">
         <span class="toggle-label">Project Type</span>
         <span class="toggle-value toggle-on">${activeProject.type === 'slurry' ? 'Slurry Seal' : activeProject.type === 'both' ? 'Both' : 'Crack Seal'}</span>
       </div>
