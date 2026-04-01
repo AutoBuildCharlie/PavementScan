@@ -911,26 +911,26 @@ body {
 .detail-stats {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 8px;
-  margin-bottom: 16px;
+  gap: 5px;
+  margin-bottom: 10px;
 }
 .detail-stat {
   background: var(--bg-dark);
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);
-  padding: 10px;
+  padding: 6px 8px;
   text-align: center;
 }
 .detail-stat-label {
-  font-size: 10px;
+  font-size: 9px;
   color: var(--text-dim);
   text-transform: uppercase;
   letter-spacing: 0.5px;
 }
 .detail-stat-value {
-  font-size: 20px;
+  font-size: 16px;
   font-weight: 700;
-  margin-top: 2px;
+  margin-top: 1px;
 }
 .rating-card-level-1 { border-color: #22c55e; background: rgba(34,197,94,0.08); }
 .rating-card-level-2 { border-color: #eab308; background: rgba(234,179,8,0.08); }
