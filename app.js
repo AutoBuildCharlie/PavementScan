@@ -1837,8 +1837,7 @@ function selectStreet(id) {
 
     <div class="detail-actions">
       ${(street.path || street.highlightStart) ?
-        `<button class="btn-secondary" onclick="removeHighlight('${street.id}')">Clear Line</button>
-         <button class="btn-secondary" onclick="snapToRoad('${street.id}')">Snap to Road</button>` :
+        `<button class="btn-secondary" onclick="snapToRoad('${street.id}')">Snap to Road</button>` :
         `<button class="btn-highlight" onclick="startFreeHighlight()">Highlight Street</button>`
       }
       ${activeProject.aiEnabled !== false ? `<button class="btn-rescan" onclick="rescanStreet('${street.id}')">Re-scan</button>` : ''}
