@@ -1343,19 +1343,38 @@ function closeSV() {
   document.getElementById('btn-sv-replace').classList.add('hidden');
 }
 
-function snapSV(isRR) {
+async function snapSV(isRR) {
   const pos = panorama.getPosition();
   const pov = panorama.getPov();
   const url = getSVUrl(pos.lat(), pos.lng(), pov.heading, 800, 500);
-  document.getElementById('snap-preview').src = url;
+  const preview = document.getElementById('snap-preview');
+  preview.src = '';
   document.getElementById('snap-rating').value = '';
   document.getElementById('snap-note').value = '';
-  // Store for save
-  window._snapUrl = url;
   window._snapIsRR = isRR;
   window._snapLat = pos.lat();
   window._snapLng = pos.lng();
+
+  // Show sheet immediately
   document.getElementById('snap-sheet-overlay').classList.remove('hidden');
+  preview.alt = 'Loading…';
+
+  // Fetch as base64 so it displays reliably on Safari
+  try {
+    const base64 = await fetchImageBase64(url);
+    if (base64) {
+      const dataUrl = `data:image/jpeg;base64,${base64}`;
+      preview.src = dataUrl;
+      preview.alt = '';
+      window._snapUrl = dataUrl;
+    } else {
+      preview.alt = 'Could not load photo';
+      window._snapUrl = url;
+    }
+  } catch {
+    preview.alt = 'Could not load photo';
+    window._snapUrl = url;
+  }
 }
 
 function closeSnapSheet(e) {
