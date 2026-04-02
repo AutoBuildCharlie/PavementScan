@@ -254,6 +254,26 @@ function twoOptImprove(route) {
   return best;
 }
 
+// Pull streets within maxFt of each stop to be done immediately after it.
+// In hybrid mode, only clusters streets sharing the same due date (or both null).
+function clusterNearby(route, maxFt, hybridMode) {
+  const used = new Array(route.length).fill(false);
+  const result = [];
+  for (let i = 0; i < route.length; i++) {
+    if (used[i]) continue;
+    used[i] = true;
+    result.push(route[i]);
+    const cur = route[i];
+    for (let j = 0; j < route.length; j++) {
+      if (used[j]) continue;
+      if (hybridMode && route[j].dueDate !== cur.dueDate) continue;
+      const d = calcDistanceFt({ lat: cur.lat, lng: cur.lng }, { lat: route[j].lat, lng: route[j].lng });
+      if (d <= maxFt) { used[j] = true; result.push(route[j]); }
+    }
+  }
+  return result;
+}
+
 function nearestNeighborOrder(pool, startLat, startLng) {
   const unvisited = [...pool];
   const result = [];
@@ -285,9 +305,9 @@ function optimizeRoute() {
   const startStreet = streets.find(s => s.id === activeProject.startStreetId) || streets[0];
   const startLat = startStreet.lat, startLng = startStreet.lng;
 
+  const CLUSTER_FT = 500; // streets within ~1 city block get done together
   if (mode === 'auto') {
-    // Nearest-neighbor then 2-opt to remove crossovers
-    ordered = twoOptImprove(nearestNeighborOrder([...streets], startLat, startLng));
+    ordered = clusterNearby(twoOptImprove(nearestNeighborOrder([...streets], startLat, startLng)), CLUSTER_FT, false);
     // Pin start street to position 1
     if (activeProject.startStreetId) {
       const idx = ordered.findIndex(s => s.id === activeProject.startStreetId);
@@ -297,7 +317,7 @@ function optimizeRoute() {
     showToast('Manual mode — set route stop numbers directly on each street');
     return;
   } else {
-    // Hybrid — due dates first, nearest-neighbor + 2-opt within each group
+    // Hybrid — due dates first, nearest-neighbor + 2-opt + cluster within each group
     const withDate = streets.filter(s => s.dueDate);
     const withoutDate = streets.filter(s => !s.dueDate);
     const dateGroups = {};
@@ -305,11 +325,11 @@ function optimizeRoute() {
     const sortedDates = Object.keys(dateGroups).sort();
     let lastLat = startLat, lastLng = startLng;
     sortedDates.forEach(date => {
-      const sorted = twoOptImprove(nearestNeighborOrder(dateGroups[date], lastLat, lastLng));
+      const sorted = clusterNearby(twoOptImprove(nearestNeighborOrder(dateGroups[date], lastLat, lastLng)), CLUSTER_FT, true);
       ordered = ordered.concat(sorted);
       if (sorted.length) { lastLat = sorted[sorted.length-1].lat; lastLng = sorted[sorted.length-1].lng; }
     });
-    if (withoutDate.length) ordered = ordered.concat(twoOptImprove(nearestNeighborOrder(withoutDate, lastLat, lastLng)));
+    if (withoutDate.length) ordered = ordered.concat(clusterNearby(twoOptImprove(nearestNeighborOrder(withoutDate, lastLat, lastLng)), CLUSTER_FT, true));
   }
 
   ordered.forEach((s, i) => { s.order = i + 1; });
