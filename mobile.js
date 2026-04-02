@@ -1390,80 +1390,51 @@ function snapRetakeMobile() {
   showToast('Photo replaced');
 }
 
-// Worker drag (same as desktop)
+// Long press on map → open Street View at that point
 function initWorkerDrag() {
-  const sv = document.getElementById('fab-sv');
-  if (!sv) return;
-  let ghost = null;
+  const mapEl = document.getElementById('map');
+  const fab = document.getElementById('fab-sv');
+  let pressTimer = null, pressX = 0, pressY = 0, moved = false;
 
-  sv.addEventListener('touchstart', e => {
-    e.preventDefault();
-    sv.style.opacity = '0.4';
-    ghost = createWorkerGhost();
-    document.addEventListener('touchmove', onDrag, { passive: false });
-    document.addEventListener('touchend', onDrop);
-  }, { passive: false });
+  // FAB tap → show hint
+  if (fab) fab.addEventListener('click', () => showToast('Hold your finger on the map to open Street View'));
 
-  sv.addEventListener('mousedown', e => {
-    e.preventDefault();
-    sv.style.opacity = '0.4';
-    ghost = createWorkerGhost();
-    document.addEventListener('mousemove', onDrag);
-    document.addEventListener('mouseup', onDrop);
-  });
+  mapEl.addEventListener('touchstart', e => {
+    if (e.touches.length !== 1) return;
+    pressX = e.touches[0].clientX;
+    pressY = e.touches[0].clientY;
+    moved = false;
+    pressTimer = setTimeout(() => {
+      if (!moved) openSVFromTouch(pressX, pressY);
+    }, 500);
+  }, { passive: true });
 
-  function onDrag(e) {
-    const touch = e.touches ? e.touches[0] : e;
-    if (ghost) {
-      ghost.style.left = touch.clientX + 'px';
-      ghost.style.top = touch.clientY + 'px';
+  mapEl.addEventListener('touchmove', e => {
+    const dx = e.touches[0].clientX - pressX;
+    const dy = e.touches[0].clientY - pressY;
+    if (Math.sqrt(dx * dx + dy * dy) > 10) {
+      moved = true;
+      clearTimeout(pressTimer);
     }
-    if (e.cancelable) e.preventDefault();
-  }
+  }, { passive: true });
 
-  function onDrop(e) {
-    const touch = e.changedTouches ? e.changedTouches[0] : e;
-    sv.style.opacity = '1';
-    if (ghost) { ghost.remove(); ghost = null; }
-    document.removeEventListener('touchmove', onDrag);
-    document.removeEventListener('touchend', onDrop);
-    document.removeEventListener('mousemove', onDrag);
-    document.removeEventListener('mouseup', onDrop);
-
-    // Check if dropped on map
-    const mapEl = document.getElementById('map');
-    const rect = mapEl.getBoundingClientRect();
-    const x = touch.clientX, y = touch.clientY;
-    if (x >= rect.left && x <= rect.right && y >= rect.top && y <= rect.bottom) {
-      // Convert pixel to lat/lng
-      const proj = map.getProjection();
-      if (proj) {
-        const bounds = map.getBounds();
-        const nw = new google.maps.LatLng(bounds.getNorthEast().lat(), bounds.getSouthWest().lng());
-        const nwPx = proj.fromLatLngToPoint(nw);
-        const scale = Math.pow(2, map.getZoom());
-        const pointX = nwPx.x + (x - rect.left) / scale;
-        const pointY = nwPx.y + (y - rect.top) / scale;
-        const latLng = proj.fromPointToLatLng(new google.maps.Point(pointX, pointY));
-        openSVAt(latLng.lat(), latLng.lng());
-      }
-    }
-  }
+  mapEl.addEventListener('touchend', () => clearTimeout(pressTimer), { passive: true });
+  mapEl.addEventListener('touchcancel', () => clearTimeout(pressTimer), { passive: true });
 }
 
-function createWorkerGhost() {
-  const el = document.createElement('div');
-  el.id = 'worker-ghost-mobile';
-  el.innerHTML = `<svg width="44" height="64" viewBox="0 0 22 32" fill="none" xmlns="http://www.w3.org/2000/svg">
-    <circle cx="11" cy="9" r="3.5" fill="#fde68a"/>
-    <rect x="2" y="13.5" width="6" height="2.5" rx="1.25" fill="#f97316" transform="rotate(20,7.5,14.75)"/>
-    <rect x="14" y="13.5" width="6" height="2.5" rx="1.25" fill="#f97316" transform="rotate(-20,14.5,14.75)"/>
-    <rect x="7.5" y="13" width="7" height="7" rx="2" fill="#f97316"/>
-    <rect x="7.5" y="19.5" width="3" height="7.5" rx="1.5" fill="#374151"/>
-    <rect x="11.5" y="19.5" width="3" height="7.5" rx="1.5" fill="#374151"/>
-  </svg>`;
-  document.body.appendChild(el);
-  return el;
+function openSVFromTouch(x, y) {
+  const proj = map.getProjection();
+  if (!proj) return;
+  const mapEl = document.getElementById('map');
+  const rect = mapEl.getBoundingClientRect();
+  const bounds = map.getBounds();
+  const nw = new google.maps.LatLng(bounds.getNorthEast().lat(), bounds.getSouthWest().lng());
+  const nwPx = proj.fromLatLngToPoint(nw);
+  const scale = Math.pow(2, map.getZoom());
+  const pointX = nwPx.x + (x - rect.left) / scale;
+  const pointY = nwPx.y + (y - rect.top) / scale;
+  const latLng = proj.fromPointToLatLng(new google.maps.Point(pointX, pointY));
+  openSVAt(latLng.lat(), latLng.lng());
 }
 
 // ─── PROJECT SHEET ─────────────────────────────────────────
