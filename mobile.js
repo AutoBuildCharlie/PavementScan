@@ -142,6 +142,34 @@ function switchProject(id) {
   showListView();
 }
 
+function importProject(e) {
+  const file = e.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = ev => {
+    try {
+      const project = JSON.parse(ev.target.result);
+      if (!project.id || !project.name || !Array.isArray(project.streets)) {
+        showToast('Invalid project file'); return;
+      }
+      // Replace if same ID exists, otherwise add
+      const idx = projects.findIndex(p => p.id === project.id);
+      if (idx >= 0) projects[idx] = project;
+      else projects.push(project);
+      activeProject = project;
+      localStorage.setItem('cse_active_project', project.id);
+      saveProjects();
+      renderAll();
+      closeProjectSheet();
+      showToast('Project imported: ' + project.name);
+    } catch {
+      showToast('Could not read file');
+    }
+    e.target.value = '';
+  };
+  reader.readAsText(file);
+}
+
 function promptNewProject() {
   const name = prompt('Project name:');
   if (!name?.trim()) return;

@@ -128,8 +128,12 @@
         <button class="btn-new-project" onclick="promptNewProject()">+ New</button>
       </div>
       <div id="project-list-mobile"></div>
+      <div style="padding:12px 16px 8px">
+        <button class="btn-secondary-full" onclick="document.getElementById('import-project-input').click()" style="border-color:#f59e0b;color:#f59e0b">⬆ Import Project (.json)</button>
+      </div>
     </div>
   </div>
+  <input type="file" id="import-project-input" accept=".json,application/json" class="hidden" onchange="importProject(event)">
 
   <!-- ─── SCAN SHEET ───────────────────────────────────── -->
   <div id="scan-sheet-overlay" class="overlay hidden" onclick="closeScanSheet(event)">
@@ -252,7 +256,7 @@
       navigator.serviceWorker.register('sw.js').catch(() => {});
     }
   </script>
-  <script src="mobile.js?v=14"></script>
+  <script src="mobile.js?v=15"></script>
   <script async defer
     src="https://maps.googleapis.com/maps/api/js?key=AIzaSyALUzyaUCMmtVah_gcnoe-g2VGeezsPkZ8&callback=initMap&loading=async">
   </script>

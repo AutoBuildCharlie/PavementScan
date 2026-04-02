@@ -180,6 +180,19 @@ function saveProjects() {
   }
 }
 
+function exportProject() {
+  if (!activeProject) return;
+  const json = JSON.stringify(activeProject, null, 2);
+  const blob = new Blob([json], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `${activeProject.name.replace(/[^a-z0-9]/gi, '_')}.json`;
+  a.click();
+  URL.revokeObjectURL(url);
+  showToast('Project exported');
+}
+
 function saveStreets() {
   activeProject.streets = streets;
   saveProjects();
@@ -292,6 +305,7 @@ function renderProjectSelector() {
       </select>
       <button class="btn-project-action" onclick="addNewProject()" title="New Project">+ New</button>
       <button class="btn-project-action" onclick="renameProject('${activeProject.id}')" title="Rename">Rename</button>
+      <button class="btn-project-action" onclick="exportProject()" title="Export project as JSON">Export</button>
       <button class="btn-project-action btn-project-delete" onclick="deleteProject('${activeProject.id}')" title="Delete">Delete</button>
     </div>
     <div class="settings-collapse-bar" onclick="toggleSettingsCollapse()">
