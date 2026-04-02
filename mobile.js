@@ -92,6 +92,9 @@ function initMap() {
 
   // Start collapsed — user swipes up when they need it
   setTimeout(() => setSheetState('peek'), 400);
+
+  // Auto-center on user's location on load
+  setTimeout(() => goToMyLocation(), 800);
 }
 
 // ─── PROJECTS ──────────────────────────────────────────────
