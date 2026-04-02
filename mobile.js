@@ -1341,6 +1341,7 @@ function closeSV() {
   document.querySelector('meta[name="theme-color"]').content = '#0a0e1a';
   _svIsRetake = false;
   document.getElementById('btn-sv-replace').classList.add('hidden');
+  setSheetState('peek');
 }
 
 async function snapSV(isRR) {
