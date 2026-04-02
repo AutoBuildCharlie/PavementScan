@@ -194,6 +194,146 @@ function exportProject() {
   showToast('Project exported');
 }
 
+// ─── IMPORT STREET LIST ────────────────────────────────────
+
+function openImportModal() {
+  document.getElementById('import-overlay').classList.remove('hidden');
+  document.getElementById('import-city').value = '';
+  document.getElementById('import-list').value = '';
+  document.getElementById('import-progress').classList.add('hidden');
+  document.getElementById('import-btn').disabled = false;
+}
+
+function closeImportModal(e) {
+  if (e && e.target !== document.getElementById('import-overlay')) return;
+  document.getElementById('import-overlay').classList.add('hidden');
+}
+
+function _isEndpoint(str) {
+  const s = (str || '').toLowerCase();
+  return s.includes('north end') || s.includes('south end') || s.includes('east end') ||
+    s.includes('west end') || s.includes('city limit') || s.includes('cul-de-sac') ||
+    s.includes('dead end') || s.includes('park') && s.length < 8;
+}
+
+function parseImportList(text) {
+  const rows = [];
+  for (const line of text.split('\n')) {
+    const trimmed = line.trim();
+    if (!trimmed) continue;
+    let parts = trimmed.split('\t').map(s => s.trim()).filter(Boolean);
+    if (parts.length < 3) parts = trimmed.split(/\s{2,}/).map(s => s.trim()).filter(Boolean);
+    if (parts.length < 3) continue;
+    const [street, begin, end] = parts;
+    if (street.toLowerCase() === 'street') continue; // header row
+    rows.push({ street, begin, end });
+  }
+  return rows;
+}
+
+async function runImportList() {
+  const city = document.getElementById('import-city').value.trim();
+  const text = document.getElementById('import-list').value.trim();
+  const scanAll = document.getElementById('import-scan-toggle').checked;
+
+  if (!city) { showToast('Enter a city and state first'); return; }
+  if (!text) { showToast('Paste the street list first'); return; }
+
+  const rows = parseImportList(text);
+  if (!rows.length) { showToast('Could not parse streets — check the format'); return; }
+
+  const progress = document.getElementById('import-progress');
+  const progressText = document.getElementById('import-progress-text');
+  const progressBar = document.getElementById('import-progress-bar');
+  progress.classList.remove('hidden');
+  document.getElementById('import-btn').disabled = true;
+
+  let added = 0, failed = 0;
+  const _delay = ms => new Promise(r => setTimeout(r, ms));
+
+  for (let i = 0; i < rows.length; i++) {
+    const { street, begin, end } = rows[i];
+    progressText.textContent = `Processing ${i + 1} of ${rows.length}: ${street}`;
+    progressBar.style.width = Math.round(((i + 1) / rows.length) * 100) + '%';
+
+    try {
+      const beginAddr = _isEndpoint(begin) ? `${street}, ${city}` : `${street} & ${begin}, ${city}`;
+      const beginGeo = await geocodeAddress(beginAddr);
+      if (!beginGeo) { failed++; await _delay(200); continue; }
+
+      let endGeo = null;
+      if (!_isEndpoint(end)) {
+        endGeo = await geocodeAddress(`${street} & ${end}, ${city}`);
+      }
+
+      const midLat = endGeo ? (beginGeo.lat + endGeo.lat) / 2 : beginGeo.lat;
+      const midLng = endGeo ? (beginGeo.lng + endGeo.lng) / 2 : beginGeo.lng;
+      const path = endGeo
+        ? [{ lat: beginGeo.lat, lng: beginGeo.lng }, { lat: endGeo.lat, lng: endGeo.lng }]
+        : null;
+      const length = path ? Math.round(calcDistanceFt(path[0], path[1])) : 200;
+
+      const roadInfo = await detectRoadType(midLat, midLng);
+
+      const streetObj = {
+        id: (crypto.randomUUID?.() || Date.now().toString(36) + Math.random().toString(36).slice(2)),
+        name: street,
+        lat: midLat, lng: midLng,
+        length, width: roadInfo.width,
+        sqft: length * roadInfo.width,
+        roadType: roadInfo.label,
+        rating: null,
+        notes: `From ${begin} to ${end}`,
+        analysis: '', adminNotes: '',
+        weedAlert: false, weedNotes: '',
+        ravelingAlert: false, ravelingNotes: '',
+        rrAlert: false, rrNotes: '',
+        path, svImage: getStreetViewUrl(midLat, midLng),
+        photos: [], rrPhotos: [], scanPhotos: [],
+        scannedAt: null, createdAt: new Date().toISOString()
+      };
+
+      if (scanAll && activeProject.aiEnabled !== false) {
+        progressText.textContent = `Scanning ${i + 1} of ${rows.length}: ${street}`;
+        try {
+          const analysis = await analyzeStreetView(streetObj);
+          streetObj.analysis = analysis.text;
+          streetObj.rating = analysis.rating;
+          streetObj.aiRating = analysis.rating;
+          streetObj.weedAlert = analysis.weedAlert || false;
+          streetObj.weedNotes = analysis.weedNotes || '';
+          streetObj.ravelingAlert = analysis.ravelingAlert || false;
+          streetObj.ravelingNotes = analysis.ravelingNotes || '';
+          streetObj.rrAlert = analysis.rrAlert || false;
+          streetObj.rrNotes = analysis.rrNotes || '';
+          streetObj.scannedAt = new Date().toISOString();
+        } catch (e) { console.warn('Scan failed for', street, e); }
+      }
+
+      streets.push(streetObj);
+      saveStreets();
+      added++;
+
+      if (added % 3 === 0 || i === rows.length - 1) {
+        renderStreetList(); placeAllMarkers(); drawAllHighlights(); updateStats();
+      }
+    } catch (e) {
+      console.warn('Import error for', street, e);
+      failed++;
+    }
+    await _delay(300);
+  }
+
+  renderStreetList(); placeAllMarkers(); drawAllHighlights(); updateStats(); fitMapToMarkers();
+  document.getElementById('import-btn').disabled = false;
+  progressText.textContent = `Done — ${added} streets imported${failed ? `, ${failed} could not be geocoded` : ''}.`;
+  progressBar.style.width = '100%';
+  setTimeout(() => {
+    closeImportModal();
+    showToast(`${added} streets imported`);
+  }, 2500);
+}
+
 // ─── DUE DATE HELPERS ──────────────────────────────────────
 function formatDueDateBadge(dueDateStr) {
   if (!dueDateStr) return null;
@@ -434,6 +574,7 @@ function renderProjectSelector() {
     <div class="project-row" style="padding-top:0">
       <button class="btn-project-action" onclick="addNewProject()" title="New Project">+ New</button>
       <button class="btn-project-action" onclick="renameProject('${activeProject.id}')" title="Rename">Rename</button>
+      <button class="btn-project-action" onclick="openImportModal()" title="Import street list from spreadsheet" style="border-color:rgba(99,102,241,0.5);color:#818cf8">&#8595; Import</button>
       <button class="btn-project-action" onclick="exportProject()" title="Export project as JSON">Export</button>
       <button class="btn-project-action btn-project-delete" onclick="deleteProject('${activeProject.id}')" title="Delete">Delete</button>
     </div>

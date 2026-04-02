@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>PavementScan</title>
-  <link rel="stylesheet" href="style.css?v=181">
+  <link rel="stylesheet" href="style.css?v=182">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 </head>
@@ -232,6 +232,37 @@
     </div>
   </div>
 
+  <!-- ─── IMPORT STREET LIST MODAL ───────────────────────── -->
+  <div id="import-overlay" class="modal-overlay hidden" onclick="closeImportModal(event)">
+    <div class="modal" onclick="event.stopPropagation()" style="max-width:480px">
+      <button class="btn-close" onclick="closeImportModal()" style="position:absolute;top:10px;right:14px;">&times;</button>
+      <h3>&#8595; Import Street List</h3>
+      <p style="font-size:12px;color:var(--text-muted);margin:4px 0 14px">Paste a street list with Street, Begin, and End columns — tab-separated from any spreadsheet or PDF.</p>
+      <div class="form-group">
+        <label>City &amp; State</label>
+        <input type="text" id="import-city" placeholder="e.g. Mill Valley, CA" style="width:100%">
+      </div>
+      <div class="form-group">
+        <label>Street List <span style="font-size:10px;color:var(--text-muted)">(paste from spreadsheet — Street | Begin | End)</span></label>
+        <textarea id="import-list" rows="8" placeholder="ALVARADO AVE&#9;ALTA VISTA AVE&#9;SIDNEY ST.&#10;ELM AVE&#9;LOCUST AVENUE&#9;EAST BLITHEDALE&#10;..." style="font-size:11px;font-family:monospace"></textarea>
+      </div>
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:14px">
+        <input type="checkbox" id="import-scan-toggle" checked style="width:16px;height:16px;cursor:pointer">
+        <label for="import-scan-toggle" style="font-size:12px;color:var(--text);cursor:pointer">Run AI scan on all streets after import <span style="color:var(--text-muted)">(takes 5–10 min for large lists)</span></label>
+      </div>
+      <div id="import-progress" class="hidden" style="margin-bottom:12px">
+        <div style="background:var(--bg-dark);border-radius:4px;height:6px;overflow:hidden;margin-bottom:6px">
+          <div id="import-progress-bar" style="height:100%;background:#6366f1;width:0%;transition:width 0.3s"></div>
+        </div>
+        <p id="import-progress-text" style="font-size:11px;color:var(--text-muted);margin:0"></p>
+      </div>
+      <div class="modal-actions">
+        <button class="btn-secondary" onclick="closeImportModal()">Cancel</button>
+        <button class="btn-primary" id="import-btn" onclick="runImportList()" style="background:#6366f1;border-color:#6366f1">Import &amp; Draw</button>
+      </div>
+    </div>
+  </div>
+
   <!-- ─── ADD STREET MODAL ────────────────────────────────── -->
   <div id="modal-overlay" class="modal-overlay hidden" onclick="closeModal(event)">
     <div class="modal" onclick="event.stopPropagation()">
@@ -281,7 +312,7 @@
   </div>
 
   <!-- ─── SCRIPTS ─────────────────────────────────────────── -->
-  <script src="app.js?v=193"></script>
+  <script src="app.js?v=194"></script>
   <script async defer
     src="https://maps.googleapis.com/maps/api/js?key=AIzaSyALUzyaUCMmtVah_gcnoe-g2VGeezsPkZ8&callback=initMap&loading=async&libraries=marker">
   </script>
