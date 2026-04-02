@@ -77,8 +77,8 @@ function initMap() {
   initBottomSheet();
   initWorkerDrag();
 
-  // Show bottom sheet in half state after short delay
-  setTimeout(() => setSheetState('half'), 400);
+  // Start collapsed — user swipes up when they need it
+  setTimeout(() => setSheetState('peek'), 400);
 }
 
 // ─── PROJECTS ──────────────────────────────────────────────
@@ -125,7 +125,7 @@ function switchProject(id) {
   activeStreetId = null;
   closeProjectSheet();
   renderAll();
-  setSheetState('half');
+  setSheetState('peek');
   showListView();
 }
 
@@ -960,7 +960,7 @@ async function deleteMobileStreet(id) {
   activeStreetId = null;
   showListView();
   renderAll();
-  setSheetState('half');
+  setSheetState('peek');
 }
 
 // ─── PHOTOS ────────────────────────────────────────────────
