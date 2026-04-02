@@ -1805,31 +1805,38 @@ function renderStreetList() {
     `<div class="street-list-back" onclick="closeDetailPanel();updateStats()">← Show all ${streets.length} streets</div>` : '';
 
   container.innerHTML = backLink + visibleStreets.map(s => {
-    const dueBadge = (() => { const d = formatDueDateBadge(s.dueDate); return d ? `<span class="due-badge due-badge-${d.cls}">${d.label}</span>` : ''; })();
+    const d = formatDueDateBadge(s.dueDate);
+    const dueBadge = d ? '<span class="due-badge due-badge-' + d.cls + '">' + d.label + '</span>' : '';
     const orderBadge = s.order != null ? '<span class="order-badge">#' + s.order + '</span>' : '';
     const doneBadge = s.completed ? '<span style="color:#22c55e;font-size:10px;font-weight:700;margin-right:4px">&#10003; DONE</span>' : '';
+    const activeClass = s.id === activeStreetId ? ' active' : '';
+    const warningClass = s.crossesBoundary ? ' street-card-warning' : '';
     const doneClass = s.completed ? ' street-card-done' : '';
+    const dueBadgeHtml = dueBadge ? '<div>' + dueBadge + '</div>' : '';
+    const cityHtml = s.city
+      ? '<div class="street-card-city">' + escHtml(s.city) + (s.county ? ', ' + escHtml(s.county) : '') + (s.roadType ? ' &middot; ' + escHtml(s.roadType) : '') + '</div>'
+      : (s.roadType ? '<div class="street-card-city">' + escHtml(s.roadType) + '</div>' : '');
+    const boundaryHtml = s.crossesBoundary ? '<div class="street-card-boundary">&#9888; ' + escHtml(s.boundaryNote) + '</div>' : '';
+    const weedHtml = s.weedAlert ? '<div class="street-card-weed">&#127807; Weed control needed</div>' : '';
+    const ravelingHtml = s.ravelingAlert ? '<div class="street-card-weed" style="color:#f59e0b">&#9888; Raveling detected</div>' : '';
+    const rrHtml = s.rrAlert ? '<div class="street-card-weed" style="color:#ef4444">&#128308; Remove &amp; Replace needed</div>' : '';
+    const sqftText = s.sqft
+      ? (activeProject.type === 'slurry' ? formatNumber(Math.round(s.sqft / 9)) + ' SY'
+        : activeProject.type === 'both' ? formatNumber(s.sqft) + ' SF &middot; ' + formatNumber(Math.round(s.sqft / 9)) + ' SY'
+        : formatNumber(s.sqft) + ' sq FT')
+      : 'No dimensions';
+    const treatment = (s.rating && s.rating !== 'pending') ? getTreatment(s.rating, activeProject.type) : null;
+    const treatmentHtml = treatment ? '<div class="street-card-treatment" style="color:' + treatment.color + '">' + treatment.label + '</div>' : '';
     return `
-    <div class="street-card ${s.id === activeStreetId ? 'active' : ''} ${s.crossesBoundary ? 'street-card-warning' : ''} street-card-${s.rating}${doneClass}" onclick="selectStreet('${s.id}')">
+    <div class="street-card${activeClass}${warningClass} street-card-${s.rating}${doneClass}" onclick="selectStreet('${s.id}')">
       <button class="street-card-delete" onclick="event.stopPropagation(); deleteStreet('${s.id}')" title="Delete">&times;</button>
       <div class="street-card-name" title="${escHtml(s.name)}">${orderBadge}${doneBadge}${escHtml(s.name)}</div>
-      ${dueBadge ? `<div>${dueBadge}</div>` : ''}
-      ${s.city ? `<div class="street-card-city">${escHtml(s.city)}${s.county ? ', ' + escHtml(s.county) : ''}${s.roadType ? ' · ' + escHtml(s.roadType) : ''}</div>` : (s.roadType ? `<div class="street-card-city">${escHtml(s.roadType)}</div>` : '')}
-      ${s.crossesBoundary ? `<div class="street-card-boundary">⚠ ${escHtml(s.boundaryNote)}</div>` : ''}
-      ${s.weedAlert ? `<div class="street-card-weed">🌿 Weed control needed</div>` : ''}
-      ${s.ravelingAlert ? `<div class="street-card-weed" style="color:#f59e0b">⚠ Raveling detected</div>` : ''}
-      ${s.rrAlert ? `<div class="street-card-weed" style="color:#ef4444">🔴 Remove &amp; Replace needed</div>` : ''}
+      ${dueBadgeHtml}${cityHtml}${boundaryHtml}${weedHtml}${ravelingHtml}${rrHtml}
       <div class="street-card-meta">
-        <span class="street-card-sqft">${s.sqft ? (
-          activeProject.type === 'slurry'
-            ? formatNumber(Math.round(s.sqft / 9)) + ' SY'
-            : activeProject.type === 'both'
-              ? formatNumber(s.sqft) + ' SF · ' + formatNumber(Math.round(s.sqft / 9)) + ' SY'
-              : formatNumber(s.sqft) + ' sq FT'
-        ) : 'No dimensions'}</span>
+        <span class="street-card-sqft">${sqftText}</span>
         <span class="rating-badge rating-${s.rating}" title="${ratingDescription(s.rating)}">${ratingLabel(s.rating)}</span>
       </div>
-      ${s.rating && s.rating !== 'pending' ? `<div class="street-card-treatment" style="color:${getTreatment(s.rating, activeProject.type).color}">${getTreatment(s.rating, activeProject.type).label}</div>` : ''}
+      ${treatmentHtml}
     </div>
   `).join('');
 }
