@@ -437,7 +437,8 @@ body {
 }
 .toggle-pill:hover { border-color: var(--accent); }
 .toggle-pill-full { flex: 1 1 100%; width: 100%; max-width: 100%; }
-.model-pill { flex: 1 1 100%; }
+.model-pill { flex: 1 1 100%; max-width: 100%; }
+.model-pill .toggle-label { flex-shrink: 0; overflow: visible; text-overflow: unset; }
 .toggle-label {
   color: var(--text-dim);
   font-size: 10px;
