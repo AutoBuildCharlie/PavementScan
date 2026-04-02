@@ -56,12 +56,7 @@
 
   <!-- ─── FABs ─────────────────────────────────────────── -->
   <div id="fab-group">
-    <button id="fab-photo" class="fab" onclick="startPhoto()" title="Take a photo">
-      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-        <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/>
-        <circle cx="12" cy="13" r="4"/>
-      </svg>
-    </button>
+
     <button id="fab-location" class="fab" onclick="goToMyLocation()" title="My location">
       <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor">
         <path d="M12 2L4.5 20.5l.8.3L12 17l6.7 3.8.8-.3L12 2z"/>
@@ -257,7 +252,7 @@
       navigator.serviceWorker.register('sw.js').catch(() => {});
     }
   </script>
-  <script src="mobile.js?v=30"></script>
+  <script src="mobile.js?v=31"></script>
   <script async defer
     src="https://maps.googleapis.com/maps/api/js?key=AIzaSyALUzyaUCMmtVah_gcnoe-g2VGeezsPkZ8&callback=initMap&loading=async">
   </script>
