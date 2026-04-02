@@ -62,16 +62,6 @@
         <circle cx="12" cy="13" r="4"/>
       </svg>
     </button>
-    <div id="fab-sv" class="fab fab-sv" title="Drag to open Street View">
-      <svg width="20" height="28" viewBox="0 0 22 32" fill="none" xmlns="http://www.w3.org/2000/svg">
-        <circle cx="11" cy="9" r="3.5" fill="#fde68a"/>
-        <rect x="2" y="13.5" width="6" height="2.5" rx="1.25" fill="#f97316" transform="rotate(20,7.5,14.75)"/>
-        <rect x="14" y="13.5" width="6" height="2.5" rx="1.25" fill="#f97316" transform="rotate(-20,14.5,14.75)"/>
-        <rect x="7.5" y="13" width="7" height="7" rx="2" fill="#f97316"/>
-        <rect x="7.5" y="19.5" width="3" height="7.5" rx="1.5" fill="#374151"/>
-        <rect x="11.5" y="19.5" width="3" height="7.5" rx="1.5" fill="#374151"/>
-      </svg>
-    </div>
     <button id="fab-location" class="fab" onclick="goToMyLocation()" title="My location">
       <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
         <circle cx="12" cy="12" r="3"/>
@@ -87,6 +77,16 @@
         <circle cx="12" cy="10" r="3"/>
       </svg>
     </button>
+    <div id="fab-sv" class="fab fab-sv" title="Hold map to open Street View">
+      <svg width="20" height="28" viewBox="0 0 22 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <circle cx="11" cy="9" r="3.5" fill="#fde68a"/>
+        <rect x="2" y="13.5" width="6" height="2.5" rx="1.25" fill="#f97316" transform="rotate(20,7.5,14.75)"/>
+        <rect x="14" y="13.5" width="6" height="2.5" rx="1.25" fill="#f97316" transform="rotate(-20,14.5,14.75)"/>
+        <rect x="7.5" y="13" width="7" height="7" rx="2" fill="#f97316"/>
+        <rect x="7.5" y="19.5" width="3" height="7.5" rx="1.5" fill="#374151"/>
+        <rect x="11.5" y="19.5" width="3" height="7.5" rx="1.5" fill="#374151"/>
+      </svg>
+    </div>
   </div>
 
   <!-- ─── PIN MODE BAR ─────────────────────────────────── -->
@@ -261,7 +261,7 @@
       navigator.serviceWorker.register('sw.js').catch(() => {});
     }
   </script>
-  <script src="mobile.js?v=28"></script>
+  <script src="mobile.js?v=29"></script>
   <script async defer
     src="https://maps.googleapis.com/maps/api/js?key=AIzaSyALUzyaUCMmtVah_gcnoe-g2VGeezsPkZ8&callback=initMap&loading=async">
   </script>
