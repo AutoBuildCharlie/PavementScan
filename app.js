@@ -254,7 +254,8 @@ function optimizeRoute() {
   if (!streets.length) { showToast('No streets to optimize'); return; }
   const mode = activeProject.routeMode || 'hybrid';
   let ordered = [];
-  const startLat = streets[0].lat, startLng = streets[0].lng;
+  const startStreet = streets.find(s => s.id === activeProject.startStreetId) || streets[0];
+  const startLat = startStreet.lat, startLng = startStreet.lng;
 
   if (mode === 'auto') {
     // Pure nearest-neighbor — ignore due dates
@@ -291,6 +292,15 @@ function clearRouteOrder() {
   renderStreetList();
   drawAllHighlights();
   showToast('Route order cleared');
+}
+
+function setStartStreet(id) {
+  activeProject.startStreetId = (activeProject.startStreetId === id) ? null : id;
+  saveProjects();
+  placeAllMarkers();
+  drawAllHighlights();
+  selectStreet(id);
+  showToast(activeProject.startStreetId ? '★ Starting street set' : 'Starting street cleared');
 }
 
 function toggleStreetDone(id) {
@@ -673,6 +683,8 @@ function migrateOldData() {
     if (!p.calibrationRules) { p.calibrationRules = []; changed = true; }
     if (!p.photoInterval) { p.photoInterval = 200; changed = true; }
     if (!p.maxPhotos) { p.maxPhotos = 6; changed = true; }
+    if (!p.routeMode) { p.routeMode = 'hybrid'; changed = true; }
+    if (p.startStreetId === undefined) { p.startStreetId = null; changed = true; }
   });
   if (changed) {
     streets = activeProject.streets;
@@ -1754,13 +1766,15 @@ function placeAllMarkers() {
   markers = [];
 
   streets.forEach(street => {
-    // Only show marker if street has no highlight line (line is the visual)
     const hasLine = street.path && street.path.length >= 2;
+    const isStart = street.id === activeProject.startStreetId;
     const marker = makeMarker({
       position: { lat: street.lat, lng: street.lng },
       map: map,
       title: street.name,
-      content: makeDotContent(ratingColor(street.rating), hasLine ? 12 : 16, '#fff', hasLine ? 0 : 1)
+      content: isStart
+        ? (() => { const el = document.createElement('div'); el.style.cssText = 'width:26px;height:26px;border-radius:50%;background:#f59e0b;border:2px solid #fff;box-shadow:0 0 10px rgba(245,158,11,0.8);display:flex;align-items:center;justify-content:center;font-size:13px;line-height:1'; el.textContent = '★'; return el; })()
+        : makeDotContent(ratingColor(street.rating), hasLine ? 12 : 16, '#fff', hasLine ? 0 : 1)
     });
 
     marker.addEventListener('gmp-click', () => selectStreet(street.id));
@@ -2038,7 +2052,8 @@ function selectStreet(id) {
 
       <div class="detail-actions">
         ${activeProject.aiEnabled !== false ? `<button class="btn-rescan" onclick="rescanStreet('${street.id}')">Re-scan</button>` : ''}
-        <button class="${street.completed ? 'btn-rescan' : 'btn-rescan'}" onclick="toggleStreetDone('${street.id}')" style="border-color:#22c55e;color:#22c55e">${street.completed ? '↩ Incomplete' : '✓ Mark Done'}</button>
+        <button class="btn-rescan" onclick="toggleStreetDone('${street.id}')" style="border-color:#22c55e;color:#22c55e">${street.completed ? '&#8629; Incomplete' : '&#10003; Mark Done'}</button>
+        <button class="btn-rescan" onclick="setStartStreet('${street.id}')" style="${activeProject.startStreetId === street.id ? 'border-color:#f59e0b;color:#f59e0b;background:rgba(245,158,11,0.12)' : 'border-color:rgba(245,158,11,0.4);color:#9ca3af'}" title="Set as starting point for route optimization">${activeProject.startStreetId === street.id ? '&#9733; Start' : '&#9734; Set Start'}</button>
         <button class="btn-danger" onclick="deleteStreet('${street.id}')">Delete</button>
       </div>
     </div>
