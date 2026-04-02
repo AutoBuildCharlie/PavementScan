@@ -226,6 +226,34 @@ function setStreetOrder(id, value) {
 }
 
 // ─── ROUTE OPTIMIZATION ────────────────────────────────────
+function routeDist(route) {
+  let total = 0;
+  for (let i = 0; i < route.length - 1; i++) {
+    total += calcDistanceFt({ lat: route[i].lat, lng: route[i].lng }, { lat: route[i+1].lat, lng: route[i+1].lng });
+  }
+  return total;
+}
+
+function twoOptImprove(route) {
+  if (route.length < 4) return route;
+  let improved = true;
+  let best = [...route];
+  while (improved) {
+    improved = false;
+    for (let i = 0; i < best.length - 1; i++) {
+      for (let k = i + 2; k < best.length; k++) {
+        // Reverse the segment between i+1 and k
+        const candidate = best.slice(0, i + 1).concat(best.slice(i + 1, k + 1).reverse()).concat(best.slice(k + 1));
+        if (routeDist(candidate) < routeDist(best)) {
+          best = candidate;
+          improved = true;
+        }
+      }
+    }
+  }
+  return best;
+}
+
 function nearestNeighborOrder(pool, startLat, startLng) {
   const unvisited = [...pool];
   const result = [];
@@ -258,13 +286,18 @@ function optimizeRoute() {
   const startLat = startStreet.lat, startLng = startStreet.lng;
 
   if (mode === 'auto') {
-    // Pure nearest-neighbor — ignore due dates
-    ordered = nearestNeighborOrder([...streets], startLat, startLng);
+    // Nearest-neighbor then 2-opt to remove crossovers
+    ordered = twoOptImprove(nearestNeighborOrder([...streets], startLat, startLng));
+    // Pin start street to position 1
+    if (activeProject.startStreetId) {
+      const idx = ordered.findIndex(s => s.id === activeProject.startStreetId);
+      if (idx > 0) ordered = [ordered[idx], ...ordered.slice(0, idx), ...ordered.slice(idx + 1)];
+    }
   } else if (mode === 'manual') {
     showToast('Manual mode — set route stop numbers directly on each street');
     return;
   } else {
-    // Hybrid — due dates first, then nearest-neighbor within each group
+    // Hybrid — due dates first, nearest-neighbor + 2-opt within each group
     const withDate = streets.filter(s => s.dueDate);
     const withoutDate = streets.filter(s => !s.dueDate);
     const dateGroups = {};
@@ -272,11 +305,11 @@ function optimizeRoute() {
     const sortedDates = Object.keys(dateGroups).sort();
     let lastLat = startLat, lastLng = startLng;
     sortedDates.forEach(date => {
-      const sorted = nearestNeighborOrder(dateGroups[date], lastLat, lastLng);
+      const sorted = twoOptImprove(nearestNeighborOrder(dateGroups[date], lastLat, lastLng));
       ordered = ordered.concat(sorted);
       if (sorted.length) { lastLat = sorted[sorted.length-1].lat; lastLng = sorted[sorted.length-1].lng; }
     });
-    if (withoutDate.length) ordered = ordered.concat(nearestNeighborOrder(withoutDate, lastLat, lastLng));
+    if (withoutDate.length) ordered = ordered.concat(twoOptImprove(nearestNeighborOrder(withoutDate, lastLat, lastLng)));
   }
 
   ordered.forEach((s, i) => { s.order = i + 1; });
