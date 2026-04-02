@@ -31,6 +31,7 @@ function doLogin() {
   if (USERS[u] && USERS[u] === p) {
     sessionStorage.setItem('cse_auth', '1');
     document.getElementById('login-screen').style.display = 'none';
+    initMap();
   } else {
     document.getElementById('login-error').classList.remove('hidden');
   }
