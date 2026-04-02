@@ -1838,7 +1838,7 @@ function renderStreetList() {
       </div>
       ${treatmentHtml}
     </div>
-  `).join('');
+  `}).join('');
 }
 
 // ─── SELECT STREET (detail panel) ──────────────────────────
