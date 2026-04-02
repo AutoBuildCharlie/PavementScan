@@ -1434,7 +1434,36 @@ function searchLocation() {
 }
 
 // ─── MY LOCATION ───────────────────────────────────────────
-let _locMarker = null, _locCircle = null, _locWatch = null, _locTracking = false;
+let _locOverlay = null, _locCircle = null, _locWatch = null, _locTracking = false;
+
+class LocationDotOverlay extends google.maps.OverlayView {
+  constructor(latlng) {
+    super();
+    this._latlng = new google.maps.LatLng(latlng.lat, latlng.lng);
+    this._el = null;
+  }
+  onAdd() {
+    const el = document.createElement('div');
+    el.className = 'loc-overlay';
+    el.innerHTML = '<div class="loc-halo"></div><div class="loc-dot"></div>';
+    this._el = el;
+    this.getPanes().overlayMouseTarget.appendChild(el);
+  }
+  draw() {
+    if (!this._el) return;
+    const p = this.getProjection().fromLatLngToDivPixel(this._latlng);
+    this._el.style.left = p.x + 'px';
+    this._el.style.top = p.y + 'px';
+  }
+  onRemove() {
+    if (this._el) { this._el.remove(); this._el = null; }
+  }
+  setLatLng(latlng) {
+    this._latlng = new google.maps.LatLng(latlng.lat, latlng.lng);
+    this.draw();
+  }
+  getLatLng() { return this._latlng; }
+}
 
 function goToMyLocation() {
   if (!navigator.geolocation) { showToast('Geolocation not supported'); return; }
@@ -1443,7 +1472,7 @@ function goToMyLocation() {
 
   if (_locTracking) {
     // Already tracking — just re-center
-    if (_locMarker) map.panTo(_locMarker.getPosition());
+    if (_locOverlay) map.panTo(_locOverlay.getLatLng());
     return;
   }
 
@@ -1455,31 +1484,19 @@ function goToMyLocation() {
     const latlng = { lat: pos.coords.latitude, lng: pos.coords.longitude };
     const acc = pos.coords.accuracy;
 
-    // Blue dot marker
-    if (!_locMarker) {
-      _locMarker = new google.maps.Marker({
-        position: latlng, map,
-        icon: {
-          path: google.maps.SymbolPath.CIRCLE,
-          scale: 10,
-          fillColor: '#3b82f6',
-          fillOpacity: 1,
-          strokeColor: '#ffffff',
-          strokeWeight: 3,
-        },
-        zIndex: 999,
-        title: 'Your location',
-      });
-      // Accuracy circle
+    if (!_locOverlay) {
+      // First fix — create overlay + accuracy circle
+      _locOverlay = new LocationDotOverlay(latlng);
+      _locOverlay.setMap(map);
       _locCircle = new google.maps.Circle({
         center: latlng, radius: acc, map,
-        fillColor: '#3b82f6', fillOpacity: 0.1,
-        strokeColor: '#3b82f6', strokeOpacity: 0.4, strokeWeight: 1,
+        fillColor: '#3b82f6', fillOpacity: 0.08,
+        strokeColor: '#3b82f6', strokeOpacity: 0.3, strokeWeight: 1,
       });
       map.panTo(latlng);
       map.setZoom(17);
     } else {
-      _locMarker.setPosition(latlng);
+      _locOverlay.setLatLng(latlng);
       _locCircle.setCenter(latlng);
       _locCircle.setRadius(acc);
     }
