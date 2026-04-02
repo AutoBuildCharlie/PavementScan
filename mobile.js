@@ -1794,6 +1794,55 @@ function ratingLabel(r) {
 function formatNum(n) { return Math.round(n || 0).toLocaleString(); }
 function escHtml(s) { return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
 
+function nearestNeighborOrder(pool, startLat, startLng) {
+  const unvisited = [...pool];
+  const result = [];
+  let curLat = startLat, curLng = startLng;
+  while (unvisited.length > 0) {
+    let bestIdx = 0, bestDist = Infinity;
+    for (let i = 0; i < unvisited.length; i++) {
+      const d = calcDistanceFt({ lat: curLat, lng: curLng }, { lat: unvisited[i].lat, lng: unvisited[i].lng });
+      if (d < bestDist) { bestDist = d; bestIdx = i; }
+    }
+    const chosen = unvisited.splice(bestIdx, 1)[0];
+    result.push(chosen);
+    curLat = chosen.lat; curLng = chosen.lng;
+  }
+  return result;
+}
+
+function optimizeRoute() {
+  const streets = getStreets();
+  if (!streets.length) { showToast('No streets to optimize'); return; }
+  const withDate = streets.filter(s => s.dueDate);
+  const withoutDate = streets.filter(s => !s.dueDate);
+  const dateGroups = {};
+  withDate.forEach(s => { if (!dateGroups[s.dueDate]) dateGroups[s.dueDate] = []; dateGroups[s.dueDate].push(s); });
+  const sortedDates = Object.keys(dateGroups).sort();
+  let ordered = [];
+  let lastLat = streets[0].lat, lastLng = streets[0].lng;
+  sortedDates.forEach(date => {
+    const sorted = nearestNeighborOrder(dateGroups[date], lastLat, lastLng);
+    ordered = ordered.concat(sorted);
+    if (sorted.length) { lastLat = sorted[sorted.length-1].lat; lastLng = sorted[sorted.length-1].lng; }
+  });
+  if (withoutDate.length) ordered = ordered.concat(nearestNeighborOrder(withoutDate, lastLat, lastLng));
+  ordered.forEach((s, i) => { s.order = i + 1; });
+  saveProjects();
+  renderAll();
+  closeProjectSheet();
+  showToast(`Route optimized — ${ordered.length} streets ordered`);
+}
+
+function clearRouteOrder() {
+  const streets = getStreets();
+  streets.forEach(s => { s.order = null; });
+  saveProjects();
+  renderAll();
+  closeProjectSheet();
+  showToast('Route order cleared');
+}
+
 function formatDueDateBadge(dueDateStr) {
   if (!dueDateStr) return null;
   const today = new Date(); today.setHours(0,0,0,0);
