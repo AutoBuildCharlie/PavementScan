@@ -953,8 +953,13 @@ RR_ALERT: YES`;
         max_tokens: 1200,
       })
     });
+    if (!resp.ok) {
+      const errText = await resp.text().catch(() => resp.status);
+      throw new Error(`Proxy error ${resp.status}: ${errText}`);
+    }
     const data = await resp.json();
     const text = data.choices?.[0]?.message?.content || data.candidates?.[0]?.content?.parts?.[0]?.text || '';
+    if (!text) throw new Error('AI returned empty response: ' + JSON.stringify(data).slice(0, 200));
 
     // Parse
     street.analysis = text;
@@ -973,7 +978,7 @@ RR_ALERT: YES`;
   } catch (e) {
     console.error('Scan error:', e);
     hideScanning();
-    showToast('Scan failed — check connection');
+    showToast('Scan failed: ' + (e.message || 'unknown error').slice(0, 80));
     renderAll();
   }
 }
