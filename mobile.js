@@ -518,7 +518,7 @@ function renderPhotosTab(s) {
     html += `<p class="photo-section-title">AI Scan Photos (${s.scanPhotos.length})</p>
       <div class="mobile-photo-grid">` +
       s.scanPhotos.map((p, i) =>
-        `<img src="${p.url}" class="mobile-photo-thumb" onclick="openLightboxMobile('${s.id}','scanPhotos',${i})" loading="lazy">`
+        `<img src="${p.dataUrl || p.url}" class="mobile-photo-thumb" onclick="openLightboxMobile('${s.id}','scanPhotos',${i})" loading="lazy">`
       ).join('') + `</div>`;
   }
 
@@ -881,15 +881,16 @@ async function analyzeStreet(street) {
       return;
     }
 
-    // Store scan photos
+    // Store scan photos — embed base64 so they work offline and on mobile
     street.scanPhotos = photoData.map((p, i) => ({
       url: getSVUrl(p.lat, p.lng, p.heading, 400, 250),
       hdUrl: getSVUrl(p.lat, p.lng, p.heading, 800, 500),
+      dataUrl: `data:image/jpeg;base64,${p.base64}`,
       label: `Photo ${i + 1}`,
       lat: p.lat, lng: p.lng
     }));
-    // Set thumbnail
-    street.svImage = street.scanPhotos[0]?.url || '';
+    // Set thumbnail from embedded base64
+    street.svImage = street.scanPhotos[0]?.dataUrl || street.scanPhotos[0]?.url || '';
 
     updateScanning('Asking AI to analyze pavement…');
 
