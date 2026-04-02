@@ -11,6 +11,7 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="mobile-web-app-capable" content="yes">
+  <link rel="manifest" href="manifest.json">
 </head>
 <body>
 
@@ -229,7 +230,12 @@
   <input type="file" id="photo-input" accept="image/*" capture="environment" class="hidden" onchange="handlePhotoInput(event)">
   <input type="file" id="rr-photo-input" accept="image/*" capture="environment" class="hidden" onchange="handleRRPhotoInput(event)">
 
-  <script src="mobile.js?v=2"></script>
+  <script>
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('sw.js').catch(() => {});
+    }
+  </script>
+  <script src="mobile.js?v=3"></script>
   <script async defer
     src="https://maps.googleapis.com/maps/api/js?key=AIzaSyALUzyaUCMmtVah_gcnoe-g2VGeezsPkZ8&callback=initMap&loading=async">
   </script>
