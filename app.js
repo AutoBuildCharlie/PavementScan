@@ -108,6 +108,7 @@ function initMap() {
   });
   document.getElementById('map').addEventListener('contextmenu', (e) => {
     if (drawingMode) { e.preventDefault(); stopDrawingMode(); showToast('Pin cancelled'); }
+    if (_orderMode) { e.preventDefault(); }
   });
 
   initWorkerDrag();
@@ -227,7 +228,7 @@ function setStreetOrder(id, value) {
 
 
 function clearRouteOrder() {
-  streets.forEach(s => { s.order = null; });
+  streets.forEach(s => { s.order = null; s.orderClickPt = null; });
   saveStreets();
   renderStreetList();
   drawAllHighlights();
@@ -240,7 +241,7 @@ function startOrderMode() {
   const maxOrder = streets.reduce((m, s) => s.order != null ? Math.max(m, s.order) : m, 0);
   _orderCounter = maxOrder > 0 ? maxOrder + 1 : 1;
   document.getElementById('order-bar').classList.remove('hidden');
-  document.getElementById('order-bar-text').textContent = 'Click street — Stop #' + _orderCounter;
+  document.getElementById('order-bar-text').textContent = 'Click — Stop #' + _orderCounter + '  |  Right-click — half stop';
   setMapCursor('pin-start');
 }
 
@@ -250,15 +251,27 @@ function cancelOrderMode() {
   setMapCursor('');
 }
 
-function assignOrderToStreet(id) {
+function assignOrderToStreet(id, clickPt) {
   const s = streets.find(s => s.id === id);
   if (!s) return;
   s.order = _orderCounter++;
+  if (clickPt) s.orderClickPt = clickPt;
   saveStreets();
   drawAllHighlights();
   renderStreetList();
-  document.getElementById('order-bar-text').textContent = 'Click street — Stop #' + _orderCounter;
+  document.getElementById('order-bar-text').textContent = 'Click — Stop #' + _orderCounter + '  |  Right-click — half stop';
   showToast('Stop #' + s.order + ' \u2192 ' + s.name);
+}
+
+function assignHalfOrderToStreet(id, clickPt) {
+  const s = streets.find(s => s.id === id);
+  if (!s) return;
+  s.order = _orderCounter > 1 ? _orderCounter - 0.5 : 0.5;
+  if (clickPt) s.orderClickPt = clickPt;
+  saveStreets();
+  drawAllHighlights();
+  renderStreetList();
+  showToast('Stop #' + s.order + ' \u2192 ' + s.name + ' (half stop \u2014 return to finish)');
 }
 
 function toggleStreetDone(id) {
@@ -1728,7 +1741,8 @@ function placeAllMarkers() {
       content: makeDotContent(ratingColor(street.rating), hasLine ? 12 : 16, '#fff', hasLine ? 0 : 1)
     });
 
-    marker.addEventListener('gmp-click', () => _orderMode ? assignOrderToStreet(street.id) : selectStreet(street.id));
+    marker.addEventListener('gmp-click', () => _orderMode ? assignOrderToStreet(street.id, { lat: street.lat, lng: street.lng }) : selectStreet(street.id));
+    marker.addEventListener('contextmenu', (e) => { if (_orderMode) { e.preventDefault(); assignHalfOrderToStreet(street.id, { lat: street.lat, lng: street.lng }); } });
     markers.push(marker);
   });
 }
@@ -3918,7 +3932,8 @@ function drawAllHighlights() {
         strokeWeight: 12,
         map: map
       });
-      glow.addListener('click', () => _orderMode ? assignOrderToStreet(street.id) : selectStreet(street.id));
+      glow.addListener('click', (e) => _orderMode ? assignOrderToStreet(street.id, { lat: e.latLng.lat(), lng: e.latLng.lng() }) : selectStreet(street.id));
+      glow.addListener('rightclick', (e) => { if (_orderMode) { assignHalfOrderToStreet(street.id, { lat: e.latLng.lat(), lng: e.latLng.lng() }); } });
       polylines.push(glow);
     }
 
@@ -3932,18 +3947,22 @@ function drawAllHighlights() {
       map: map,
       zIndex: isActive ? 20 : 5
     });
-    line.addListener('click', () => _orderMode ? assignOrderToStreet(street.id) : selectStreet(street.id));
+    line.addListener('click', (e) => _orderMode ? assignOrderToStreet(street.id, { lat: e.latLng.lat(), lng: e.latLng.lng() }) : selectStreet(street.id));
+    line.addListener('rightclick', (e) => { if (_orderMode) { assignHalfOrderToStreet(street.id, { lat: e.latLng.lat(), lng: e.latLng.lng() }); } });
     polylines.push(line);
 
     // Order number label on map
     if (street.order != null && points.length >= 2) {
       const midIdx = Math.floor(points.length / 2);
-      const midPt = points[midIdx];
+      const fallbackPt = points[midIdx];
+      const badgePt = street.orderClickPt || fallbackPt;
+      const isHalf = String(street.order).includes('.');
       const orderEl = document.createElement('div');
-      orderEl.style.cssText = 'display:flex;align-items:center;justify-content:center;width:22px;height:22px;border-radius:50%;background:#f59e0b;color:#000;font-size:10px;font-weight:800;box-shadow:0 1px 4px rgba(0,0,0,0.6);cursor:pointer;';
+      orderEl.style.cssText = `display:flex;align-items:center;justify-content:center;width:${isHalf ? '32px' : '22px'};height:22px;border-radius:11px;background:${isHalf ? '#6366f1' : '#f59e0b'};color:#fff;font-size:9px;font-weight:800;box-shadow:0 1px 4px rgba(0,0,0,0.6);cursor:pointer;`;
       orderEl.textContent = street.order;
-      const orderMarker = makeMarker({ position: { lat: midPt.lat, lng: midPt.lng }, map, content: orderEl, zIndex: 20, title: `Stop #${street.order}: ${street.name}` });
-      orderMarker.addEventListener('gmp-click', () => _orderMode ? assignOrderToStreet(street.id) : selectStreet(street.id));
+      const orderMarker = makeMarker({ position: { lat: badgePt.lat, lng: badgePt.lng }, map, content: orderEl, zIndex: 20, title: `Stop #${street.order}: ${street.name}` });
+      orderMarker.addEventListener('gmp-click', (e) => _orderMode ? assignOrderToStreet(street.id, { lat: badgePt.lat, lng: badgePt.lng }) : selectStreet(street.id));
+      orderMarker.addEventListener('contextmenu', (e) => { if (_orderMode) { e.preventDefault(); assignHalfOrderToStreet(street.id, { lat: badgePt.lat, lng: badgePt.lng }); } });
       polylines.push(orderMarker);
     }
 
