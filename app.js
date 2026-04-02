@@ -254,24 +254,52 @@ function twoOptImprove(route) {
   return best;
 }
 
-// Pull streets within maxFt of each stop to be done immediately after it.
-// In hybrid mode, only clusters streets sharing the same due date (or both null).
-function clusterNearby(route, maxFt, hybridMode) {
-  const used = new Array(route.length).fill(false);
-  const result = [];
-  for (let i = 0; i < route.length; i++) {
-    if (used[i]) continue;
-    used[i] = true;
-    result.push(route[i]);
-    const cur = route[i];
-    for (let j = 0; j < route.length; j++) {
-      if (used[j]) continue;
-      if (hybridMode && route[j].dueDate !== cur.dueDate) continue;
-      const d = calcDistanceFt({ lat: cur.lat, lng: cur.lng }, { lat: route[j].lat, lng: route[j].lng });
-      if (d <= maxFt) { used[j] = true; result.push(route[j]); }
+// Group streets into proximity clusters — any street within maxFt of another in the group joins it.
+function buildClusters(streets, maxFt) {
+  const clusters = streets.map(s => [s]);
+  let merged = true;
+  while (merged) {
+    merged = false;
+    for (let i = 0; i < clusters.length && !merged; i++) {
+      for (let j = i + 1; j < clusters.length && !merged; j++) {
+        for (const a of clusters[i]) {
+          for (const b of clusters[j]) {
+            if (calcDistanceFt({ lat: a.lat, lng: a.lng }, { lat: b.lat, lng: b.lng }) <= maxFt) {
+              clusters[i] = clusters[i].concat(clusters.splice(j, 1)[0]);
+              merged = true;
+              break;
+            }
+          }
+          if (merged) break;
+        }
+      }
     }
   }
-  return result;
+  return clusters;
+}
+
+// Cluster-first, route-second: group nearby streets, route between clusters, route within each cluster.
+function optimizeWithClusters(streetList, startLat, startLng) {
+  const CLUSTER_FT = 500;
+  const clusters = buildClusters(streetList, CLUSTER_FT);
+  // Represent each cluster by its centroid for inter-cluster routing
+  const clusterPts = clusters.map(c => ({
+    lat: c.reduce((s, x) => s + x.lat, 0) / c.length,
+    lng: c.reduce((s, x) => s + x.lng, 0) / c.length,
+    streets: c
+  }));
+  const orderedClusters = twoOptImprove(nearestNeighborOrder([...clusterPts], startLat, startLng));
+  // Route within each cluster starting from where the previous cluster ended
+  let ordered = [];
+  let curLat = startLat, curLng = startLng;
+  for (const cp of orderedClusters) {
+    const internal = cp.streets.length > 1
+      ? twoOptImprove(nearestNeighborOrder([...cp.streets], curLat, curLng))
+      : cp.streets;
+    ordered = ordered.concat(internal);
+    if (internal.length) { curLat = internal[internal.length-1].lat; curLng = internal[internal.length-1].lng; }
+  }
+  return ordered;
 }
 
 function nearestNeighborOrder(pool, startLat, startLng) {
@@ -305,9 +333,8 @@ function optimizeRoute() {
   const startStreet = streets.find(s => s.id === activeProject.startStreetId) || streets[0];
   const startLat = startStreet.lat, startLng = startStreet.lng;
 
-  const CLUSTER_FT = 500; // streets within ~1 city block get done together
   if (mode === 'auto') {
-    ordered = clusterNearby(twoOptImprove(nearestNeighborOrder([...streets], startLat, startLng)), CLUSTER_FT, false);
+    ordered = optimizeWithClusters([...streets], startLat, startLng);
     // Pin start street to position 1
     if (activeProject.startStreetId) {
       const idx = ordered.findIndex(s => s.id === activeProject.startStreetId);
@@ -317,7 +344,7 @@ function optimizeRoute() {
     showToast('Manual mode — set route stop numbers directly on each street');
     return;
   } else {
-    // Hybrid — due dates first, nearest-neighbor + 2-opt + cluster within each group
+    // Hybrid — group by due date first, then cluster-first routing within each group
     const withDate = streets.filter(s => s.dueDate);
     const withoutDate = streets.filter(s => !s.dueDate);
     const dateGroups = {};
@@ -325,11 +352,11 @@ function optimizeRoute() {
     const sortedDates = Object.keys(dateGroups).sort();
     let lastLat = startLat, lastLng = startLng;
     sortedDates.forEach(date => {
-      const sorted = clusterNearby(twoOptImprove(nearestNeighborOrder(dateGroups[date], lastLat, lastLng)), CLUSTER_FT, true);
+      const sorted = optimizeWithClusters(dateGroups[date], lastLat, lastLng);
       ordered = ordered.concat(sorted);
       if (sorted.length) { lastLat = sorted[sorted.length-1].lat; lastLng = sorted[sorted.length-1].lng; }
     });
-    if (withoutDate.length) ordered = ordered.concat(clusterNearby(twoOptImprove(nearestNeighborOrder(withoutDate, lastLat, lastLng)), CLUSTER_FT, true));
+    if (withoutDate.length) ordered = ordered.concat(optimizeWithClusters(withoutDate, lastLat, lastLng));
   }
 
   ordered.forEach((s, i) => { s.order = i + 1; });
