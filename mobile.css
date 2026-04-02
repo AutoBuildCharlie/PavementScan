@@ -582,6 +582,12 @@ html, body {
 #sv-minimap .gm-style-cc,
 #sv-minimap a[href*="maps.google.com"],
 #sv-minimap button[title="Keyboard shortcuts"] { display: none !important; }
+#sv-minimap .gm-style > div:last-child,
+#sv-minimap [style*="background-color: white"],
+#sv-minimap [style*="background-color:white"],
+#sv-minimap [style*="background: white"],
+#sv-minimap [style*="background:white"] { background: transparent !important; }
+#sv-minimap { background: #0d1117; }
 #sv-resize-handle {
   height: 18px;
   flex-shrink: 0;
