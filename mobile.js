@@ -1253,13 +1253,50 @@ function closeLightboxMobile() {
 }
 
 // ─── STREET VIEW ───────────────────────────────────────────
+let _svMinimap = null, _svMinimapOverlay = null;
+
 function openSVAt(lat, lng, heading = 0) {
   const overlay = document.getElementById('sv-overlay');
   overlay.classList.remove('hidden');
+
+  // Init minimap
+  if (!_svMinimap) {
+    _svMinimap = new google.maps.Map(document.getElementById('sv-minimap'), {
+      center: { lat, lng }, zoom: 17,
+      disableDefaultUI: true,
+      gestureHandling: 'none',
+      clickableIcons: false,
+      styles: [
+        { elementType: 'geometry', stylers: [{ color: '#0d1117' }] },
+        { elementType: 'labels.text.fill', stylers: [{ color: '#94a3b8' }] },
+        { elementType: 'labels.text.stroke', stylers: [{ color: '#0d1117' }] },
+        { featureType: 'road', elementType: 'geometry', stylers: [{ color: '#1e293b' }] },
+        { featureType: 'poi', stylers: [{ visibility: 'off' }] },
+        { featureType: 'transit', stylers: [{ visibility: 'off' }] },
+        { featureType: 'landscape', elementType: 'geometry', stylers: [{ color: '#0f172a' }] },
+      ],
+    });
+    _svMinimapOverlay = new (getLocationDotOverlayClass())({ lat, lng });
+    _svMinimapOverlay.setMap(_svMinimap);
+  } else {
+    _svMinimap.panTo({ lat, lng });
+    _svMinimapOverlay.setLatLng({ lat, lng });
+  }
+
+  // Init panorama
   if (!panorama) {
     panorama = new google.maps.StreetViewPanorama(document.getElementById('sv-pano'), {
       position: { lat, lng }, pov: { heading, pitch: 0 }, zoom: 1,
       disableDefaultUI: true,
+    });
+    // Track position as user moves in SV
+    panorama.addListener('position_changed', () => {
+      const pos = panorama.getPosition();
+      if (pos && _svMinimap) {
+        const latlng = { lat: pos.lat(), lng: pos.lng() };
+        _svMinimap.panTo(latlng);
+        _svMinimapOverlay.setLatLng(latlng);
+      }
     });
   } else {
     panorama.setPosition({ lat, lng });

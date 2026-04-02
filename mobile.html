@@ -185,6 +185,7 @@
 
   <!-- ─── STREET VIEW OVERLAY ──────────────────────────── -->
   <div id="sv-overlay" class="hidden">
+    <div id="sv-minimap"></div>
     <div id="sv-pano"></div>
     <div id="sv-toolbar">
       <button id="btn-close-sv" onclick="closeSV()">← Back</button>
@@ -259,7 +260,7 @@
       navigator.serviceWorker.register('sw.js').catch(() => {});
     }
   </script>
-  <script src="mobile.js?v=24"></script>
+  <script src="mobile.js?v=25"></script>
   <script async defer
     src="https://maps.googleapis.com/maps/api/js?key=AIzaSyALUzyaUCMmtVah_gcnoe-g2VGeezsPkZ8&callback=initMap&loading=async">
   </script>
