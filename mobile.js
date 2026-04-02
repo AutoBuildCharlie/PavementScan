@@ -1445,34 +1445,39 @@ function searchLocation() {
 
 // ─── MY LOCATION ───────────────────────────────────────────
 let _locOverlay = null, _locCircle = null, _locWatch = null, _locTracking = false;
+let _LocationDotOverlay = null;
 
-class LocationDotOverlay extends google.maps.OverlayView {
-  constructor(latlng) {
-    super();
-    this._latlng = new google.maps.LatLng(latlng.lat, latlng.lng);
-    this._el = null;
-  }
-  onAdd() {
-    const el = document.createElement('div');
-    el.className = 'loc-overlay';
-    el.innerHTML = '<div class="loc-halo"></div><div class="loc-dot"></div>';
-    this._el = el;
-    this.getPanes().overlayMouseTarget.appendChild(el);
-  }
-  draw() {
-    if (!this._el) return;
-    const p = this.getProjection().fromLatLngToDivPixel(this._latlng);
-    this._el.style.left = p.x + 'px';
-    this._el.style.top = p.y + 'px';
-  }
-  onRemove() {
-    if (this._el) { this._el.remove(); this._el = null; }
-  }
-  setLatLng(latlng) {
-    this._latlng = new google.maps.LatLng(latlng.lat, latlng.lng);
-    this.draw();
-  }
-  getLatLng() { return this._latlng; }
+function getLocationDotOverlayClass() {
+  if (_LocationDotOverlay) return _LocationDotOverlay;
+  _LocationDotOverlay = class extends google.maps.OverlayView {
+    constructor(latlng) {
+      super();
+      this._latlng = new google.maps.LatLng(latlng.lat, latlng.lng);
+      this._el = null;
+    }
+    onAdd() {
+      const el = document.createElement('div');
+      el.className = 'loc-overlay';
+      el.innerHTML = '<div class="loc-halo"></div><div class="loc-dot"></div>';
+      this._el = el;
+      this.getPanes().overlayMouseTarget.appendChild(el);
+    }
+    draw() {
+      if (!this._el) return;
+      const p = this.getProjection().fromLatLngToDivPixel(this._latlng);
+      this._el.style.left = p.x + 'px';
+      this._el.style.top = p.y + 'px';
+    }
+    onRemove() {
+      if (this._el) { this._el.remove(); this._el = null; }
+    }
+    setLatLng(latlng) {
+      this._latlng = new google.maps.LatLng(latlng.lat, latlng.lng);
+      this.draw();
+    }
+    getLatLng() { return this._latlng; }
+  };
+  return _LocationDotOverlay;
 }
 
 function goToMyLocation() {
@@ -1496,7 +1501,7 @@ function goToMyLocation() {
 
     if (!_locOverlay) {
       // First fix — create overlay + accuracy circle
-      _locOverlay = new LocationDotOverlay(latlng);
+      _locOverlay = new (getLocationDotOverlayClass())(latlng);
       _locOverlay.setMap(map);
       _locCircle = new google.maps.Circle({
         center: latlng, radius: acc, map,
