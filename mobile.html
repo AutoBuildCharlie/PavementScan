@@ -52,7 +52,7 @@
       <span class="chip-arrow">▾</span>
     </button>
     <div class="search-row">
-      <input type="text" id="search-input" placeholder="Search address…" onkeydown="if(event.key==='Enter')searchLocation()">
+      <input type="text" id="search-input" placeholder="Search streets or address…" onkeydown="if(event.key==='Enter')searchLocation()" oninput="filterStreetList(this.value)">
     </div>
   </div>
 
@@ -156,6 +156,7 @@
         <label>Notes (optional)</label>
         <textarea id="scan-street-notes" rows="2" placeholder="Parking lot, residential, etc."></textarea>
       </div>
+      <button id="btn-use-location" class="btn-secondary-full" onclick="useMyLocationForScan()" style="border-color:var(--accent);color:var(--accent)">📍 Use My Location</button>
       <button class="btn-primary-full" onclick="submitScanSheet()">Add &amp; Scan</button>
       <button class="btn-secondary-full" onclick="closeScanSheet()">Cancel</button>
     </div>
@@ -258,7 +259,7 @@
       navigator.serviceWorker.register('sw.js').catch(() => {});
     }
   </script>
-  <script src="mobile.js?v=8"></script>
+  <script src="mobile.js?v=9"></script>
   <script async defer
     src="https://maps.googleapis.com/maps/api/js?key=AIzaSyALUzyaUCMmtVah_gcnoe-g2VGeezsPkZ8&callback=initMap&loading=async">
   </script>

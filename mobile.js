@@ -166,25 +166,48 @@ function renderProjectChip() {
   if (el) el.textContent = activeProject?.name || 'No Project';
 }
 
+let _streetFilter = '';
+
+function filterStreetList(query) {
+  _streetFilter = query.toLowerCase();
+  renderStreetList();
+}
+
 function renderStreetList() {
   const el = document.getElementById('mobile-street-list');
-  const streets = getStreets();
-  if (!streets.length) {
+  let streets = getStreets();
+
+  // Filter by search query
+  if (_streetFilter) {
+    streets = streets.filter(s => s.name.toLowerCase().includes(_streetFilter));
+  }
+
+  if (!getStreets().length) {
     el.innerHTML = `<div style="text-align:center;padding:32px 0;color:var(--text-dim);font-size:13px">No streets yet.<br>Tap 📍 to pin a street or use Add Street.</div>`;
     return;
   }
+  if (!streets.length) {
+    el.innerHTML = `<div style="text-align:center;padding:32px 0;color:var(--text-dim);font-size:13px">No streets match "${escHtml(_streetFilter)}"</div>`;
+    return;
+  }
+
   el.innerHTML = streets.map(s => {
     const rc = ratingClass(s.rating);
     const badge = ratingLabel(s.rating);
     const sqft = s.sqft ? `${formatNum(s.sqft)} sqft` : '';
     const photoCount = (s.photos?.length || 0) + (s.scanPhotos?.length || 0);
-    return `<div class="mobile-street-item" onclick="openStreet('${s.id}')">
-      <div class="street-item-rating ${rc}"></div>
-      <div class="street-item-info">
-        <div class="street-item-name">${escHtml(s.name)}</div>
-        <div class="street-item-meta">${sqft}${sqft && photoCount ? ' · ' : ''}${photoCount ? photoCount + ' photos' : ''}</div>
+    return `<div class="mobile-street-item swipe-item" data-id="${s.id}"
+        ontouchstart="swipeStart(event,this)" ontouchmove="swipeMove(event,this)" ontouchend="swipeEnd(event,this,'${s.id}')"
+        onclick="openStreet('${s.id}')">
+      <div class="swipe-content">
+        <div class="street-item-rating ${rc}"></div>
+        <div class="street-item-info">
+          <div class="street-item-name">${escHtml(s.name)}</div>
+          <div class="street-item-meta">${sqft}${sqft && photoCount ? ' · ' : ''}${photoCount ? photoCount + ' photos' : ''}</div>
+        </div>
+        <div class="street-item-badge" style="background:${ratingBg(s.rating)};color:${ratingColor(s.rating)}">${badge}</div>
       </div>
-      <div class="street-item-badge" style="background:${ratingBg(s.rating)};color:${ratingColor(s.rating)}">${badge}</div>
+      <div class="swipe-delete" onclick="swipeDeleteStreet('${s.id}')">Delete</div>
     </div>`;
   }).join('');
 }
@@ -243,6 +266,18 @@ function setSheetState(state) {
   sheet.classList.remove('peek', 'half', 'full');
   sheet.classList.add(state);
   sheet.style.transform = '';
+  // Hide FABs when sheet is full
+  const fabs = document.getElementById('fab-group');
+  if (fabs) fabs.classList.toggle('fabs-hidden', state === 'full');
+  // Update handle color to active street rating
+  updateHandleColor();
+}
+
+function updateHandleColor() {
+  const handle = document.getElementById('sheet-handle');
+  if (!handle) return;
+  const s = activeStreetId ? getStreets().find(s => s.id === activeStreetId) : null;
+  handle.style.background = s?.rating ? ratingColor(s.rating) : '';
 }
 
 function onSheetDragStart(e) {
@@ -511,13 +546,22 @@ function drawAllPolylines() {
     const color = ratingColor(s.rating);
     const isActive = s.id === activeStreetId;
 
+    // Wide invisible tap target
+    const tap = new google.maps.Polyline({
+      path: points, geodesic: true,
+      strokeColor: color, strokeOpacity: 0.001, strokeWeight: 30, map,
+      zIndex: 2, clickable: true
+    });
+    tap.addListener('click', () => { openStreet(s.id); setSheetState('half'); });
+    polylines.push(tap);
+
     // Glow
     const glow = new google.maps.Polyline({
       path: points, geodesic: true,
       strokeColor: color, strokeOpacity: 0.08, strokeWeight: 10, map,
       zIndex: 3
     });
-    glow.addListener('click', () => openStreet(s.id));
+    glow.addListener('click', () => { openStreet(s.id); setSheetState('half'); });
     polylines.push(glow);
 
     // Main line
@@ -629,6 +673,28 @@ function handleMapClick(latLng) {
 function openScanSheet() {
   document.getElementById('scan-sheet-overlay').classList.remove('hidden');
   setTimeout(() => document.getElementById('scan-street-name')?.focus(), 100);
+}
+
+function useMyLocationForScan() {
+  if (!navigator.geolocation) { showToast('Geolocation not supported'); return; }
+  const btn = document.getElementById('btn-use-location');
+  if (btn) { btn.textContent = 'Getting location…'; btn.disabled = true; }
+  navigator.geolocation.getCurrentPosition(pos => {
+    const lat = pos.coords.latitude, lng = pos.coords.longitude;
+    const gc = new google.maps.Geocoder();
+    gc.geocode({ location: { lat, lng } }, (res, status) => {
+      if (btn) { btn.textContent = '📍 Use My Location'; btn.disabled = false; }
+      if (status === 'OK' && res[0]) {
+        const comp = res[0].address_components;
+        const route = comp.find(c => c.types.includes('route'));
+        const name = route?.long_name || res[0].formatted_address;
+        document.getElementById('scan-street-name').value = name;
+      }
+    });
+  }, () => {
+    if (btn) { btn.textContent = '📍 Use My Location'; btn.disabled = false; }
+    showToast('Could not get location');
+  }, { enableHighAccuracy: true });
 }
 function closeScanSheet(e) {
   if (e && e.target !== document.getElementById('scan-sheet-overlay')) return;
@@ -972,8 +1038,27 @@ async function deleteMobileStreet(id) {
 
 // ─── PHOTOS ────────────────────────────────────────────────
 function startPhoto() {
-  if (!activeStreetId) { showToast('Select a street first'); return; }
-  startPhotoFor(activeStreetId);
+  if (activeStreetId) {
+    startPhotoFor(activeStreetId);
+    return;
+  }
+  // No street selected — find nearest street to current location
+  if (!navigator.geolocation) { showToast('Select a street first'); return; }
+  navigator.geolocation.getCurrentPosition(pos => {
+    const streets = getStreets();
+    if (!streets.length) { showToast('No streets yet'); return; }
+    let nearest = null, minDist = Infinity;
+    streets.forEach(s => {
+      const d = calcDistanceFt({ lat: pos.coords.latitude, lng: pos.coords.longitude }, { lat: s.lat, lng: s.lng });
+      if (d < minDist) { minDist = d; nearest = s; }
+    });
+    if (nearest && minDist < 2000) {
+      showToast(`Photo saved to ${nearest.name}`);
+      startPhotoFor(nearest.id);
+    } else {
+      showToast('Select a street first');
+    }
+  }, () => showToast('Select a street first'));
 }
 
 function startPhotoFor(streetId) {
@@ -1362,6 +1447,48 @@ function logCalibration(street, aiRating, newRating) {
     reason: '', loggedAt: new Date().toISOString()
   });
   saveProjects();
+}
+
+// ─── SWIPE TO DELETE ───────────────────────────────────────
+let _swipeStartX = null;
+
+function swipeStart(e, el) {
+  _swipeStartX = e.touches[0].clientX;
+  el.querySelector('.swipe-content').style.transition = 'none';
+}
+
+function swipeMove(e, el) {
+  if (_swipeStartX === null) return;
+  const delta = e.touches[0].clientX - _swipeStartX;
+  if (delta < 0) {
+    const content = el.querySelector('.swipe-content');
+    content.style.transform = `translateX(${Math.max(delta, -80)}px)`;
+    el.querySelector('.swipe-delete').style.opacity = Math.min(Math.abs(delta) / 80, 1);
+  }
+}
+
+function swipeEnd(e, el, id) {
+  if (_swipeStartX === null) return;
+  const delta = e.changedTouches[0].clientX - _swipeStartX;
+  const content = el.querySelector('.swipe-content');
+  content.style.transition = 'transform 0.2s';
+  if (delta < -60) {
+    // Reveal delete button
+    content.style.transform = 'translateX(-80px)';
+  } else {
+    content.style.transform = '';
+    el.querySelector('.swipe-delete').style.opacity = 0;
+  }
+  _swipeStartX = null;
+}
+
+function swipeDeleteStreet(id) {
+  if (!confirm('Delete this street?')) return;
+  activeProject.streets = activeProject.streets.filter(s => s.id !== id);
+  saveProjects();
+  if (activeStreetId === id) { activeStreetId = null; showListView(); }
+  renderAll();
+  showToast('Street deleted');
 }
 
 // ─── PULL TO REFRESH ───────────────────────────────────────
