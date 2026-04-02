@@ -106,7 +106,7 @@ function loadProjects() {
   projects.forEach(p => {
     if (!p.photoInterval) p.photoInterval = 200;
     if (!p.maxPhotos) p.maxPhotos = 6;
-    if (p.aiEnabled === undefined) p.aiEnabled = true;
+    if (p.aiEnabled === undefined) p.aiEnabled = false;
     if (!p.scanModel) p.scanModel = 'gpt-4o';
     if (!p.type) p.type = 'crack-seal';
     if (!p.streets) p.streets = [];
@@ -129,7 +129,7 @@ function createProject(name, type = 'crack-seal') {
     id: crypto.randomUUID(), name, type,
     streets: [], createdAt: new Date().toISOString(),
     photoInterval: 200, maxPhotos: 6,
-    aiEnabled: true, scanModel: 'gpt-4o',
+    aiEnabled: false, scanModel: 'gpt-4o',
     aiNotes: '', detectRR: true, includeWideCracks: false,
     detectLaneLayout: false,
   };
@@ -778,7 +778,7 @@ async function addStreetByAddress(address, lengthFt, notes) {
     saveProjects();
     map.panTo({ lat: latLng.lat, lng: latLng.lng });
 
-    if (activeProject.aiEnabled !== false) {
+    if (false) {
       await analyzeStreet(street);
     } else {
       hideScanning();
@@ -832,7 +832,7 @@ function confirmNameSheet() {
   saveProjects();
   drawAllPolylines();
 
-  if (activeProject.aiEnabled !== false) {
+  if (false) {
     showScanning('Scanning Street View…');
     analyzeStreet(s).catch(e => { console.error(e); hideScanning(); showToast('Scan failed'); });
   } else {
@@ -1083,10 +1083,7 @@ function getProvider(model) {
 }
 
 async function rescanMobile(id) {
-  const s = getStreets().find(s => s.id === id);
-  if (!s) return;
-  showScanning('Re-scanning…');
-  await analyzeStreet(s);
+  showToast('AI scanning is office use only. Use the desktop app to scan.');
 }
 
 async function deleteMobileStreet(id) {
