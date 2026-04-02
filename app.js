@@ -228,7 +228,7 @@ function setStreetOrder(id, value) {
 
 
 function clearRouteOrder() {
-  streets.forEach(s => { s.order = null; s.orderClickPt = null; });
+  streets.forEach(s => { s.order = null; s.orderClickPt = null; s.orderNote = ''; });
   saveStreets();
   renderStreetList();
   drawAllHighlights();
@@ -251,27 +251,60 @@ function cancelOrderMode() {
   setMapCursor('');
 }
 
+let _orderPendingId = null;
+
 function assignOrderToStreet(id, clickPt) {
   const s = streets.find(s => s.id === id);
   if (!s) return;
   s.order = _orderCounter++;
+  s.orderNote = '';
   if (clickPt) s.orderClickPt = clickPt;
   saveStreets();
   drawAllHighlights();
   renderStreetList();
-  document.getElementById('order-bar-text').textContent = 'Click — Stop #' + _orderCounter + '  |  Right-click — half stop';
-  showToast('Stop #' + s.order + ' \u2192 ' + s.name);
+  _showOrderNotePrompt(id, s.order, s.name);
 }
 
 function assignHalfOrderToStreet(id, clickPt) {
   const s = streets.find(s => s.id === id);
   if (!s) return;
   s.order = _orderCounter > 1 ? _orderCounter - 0.5 : 0.5;
+  s.orderNote = '';
   if (clickPt) s.orderClickPt = clickPt;
   saveStreets();
   drawAllHighlights();
   renderStreetList();
-  showToast('Stop #' + s.order + ' \u2192 ' + s.name + ' (half stop \u2014 return to finish)');
+  _showOrderNotePrompt(id, s.order, s.name);
+}
+
+function _showOrderNotePrompt(id, stopNum, streetName) {
+  _orderPendingId = id;
+  document.getElementById('order-bar-main').classList.add('hidden');
+  document.getElementById('order-note-row').classList.remove('hidden');
+  document.getElementById('order-note-label').textContent = 'Stop #' + stopNum + ' \u2192 ' + streetName;
+  const input = document.getElementById('order-note-input');
+  input.value = '';
+  setTimeout(() => input.focus(), 50);
+}
+
+function saveOrderNote() {
+  const note = document.getElementById('order-note-input').value.trim();
+  if (_orderPendingId) {
+    const s = streets.find(s => s.id === _orderPendingId);
+    if (s) { s.orderNote = note; saveStreets(); }
+  }
+  _closeOrderNotePrompt();
+}
+
+function skipOrderNote() {
+  _closeOrderNotePrompt();
+}
+
+function _closeOrderNotePrompt() {
+  _orderPendingId = null;
+  document.getElementById('order-note-row').classList.add('hidden');
+  document.getElementById('order-bar-main').classList.remove('hidden');
+  document.getElementById('order-bar-text').textContent = 'Click — Stop #' + _orderCounter + '  |  Right-click — half stop';
 }
 
 function toggleStreetDone(id) {

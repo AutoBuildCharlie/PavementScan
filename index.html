@@ -130,8 +130,20 @@
         <button class="btn-cancel-highlight" onclick="cancelHighlight()">Done</button>
       </div>
       <div id="order-bar" class="order-bar hidden">
-        <span id="order-bar-text">Click street — Stop #1</span>
-        <button class="btn-cancel-highlight" onclick="cancelOrderMode()">Done</button>
+        <div id="order-bar-main" style="display:flex;align-items:center;justify-content:space-between;width:100%;gap:6px">
+          <span id="order-bar-text">Click — Stop #1  |  Right-click — half stop</span>
+          <button class="btn-cancel-highlight" onclick="cancelOrderMode()">Done</button>
+        </div>
+        <div id="order-note-row" class="hidden" style="width:100%;margin-top:6px">
+          <div id="order-note-label" style="font-size:10px;margin-bottom:4px;opacity:0.8"></div>
+          <div style="display:flex;gap:4px">
+            <input id="order-note-input" type="text" placeholder="Why this next? (optional)" maxlength="120"
+              style="flex:1;background:rgba(245,158,11,0.1);border:1px solid rgba(245,158,11,0.4);border-radius:4px;color:#fff;font-size:11px;padding:4px 7px;outline:none"
+              onkeydown="if(event.key==='Enter')saveOrderNote();if(event.key==='Escape')skipOrderNote()">
+            <button onclick="saveOrderNote()" style="background:#f59e0b;border:none;color:#000;border-radius:4px;padding:4px 8px;font-size:11px;font-weight:700;cursor:pointer">Save</button>
+            <button onclick="skipOrderNote()" style="background:none;border:1px solid rgba(245,158,11,0.4);color:#f59e0b;border-radius:4px;padding:4px 8px;font-size:11px;cursor:pointer">Skip</button>
+          </div>
+        </div>
       </div>
       <div id="street-list" class="street-list">
         <div class="empty-state">No streets added yet.<br>Use <strong>Pin.Start</strong> to draw a street.</div>
@@ -269,7 +281,7 @@
   </div>
 
   <!-- ─── SCRIPTS ─────────────────────────────────────────── -->
-  <script src="app.js?v=192"></script>
+  <script src="app.js?v=193"></script>
   <script async defer
     src="https://maps.googleapis.com/maps/api/js?key=AIzaSyALUzyaUCMmtVah_gcnoe-g2VGeezsPkZ8&callback=initMap&loading=async&libraries=marker">
   </script>
