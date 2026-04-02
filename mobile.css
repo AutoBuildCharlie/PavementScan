@@ -754,43 +754,21 @@ html, body {
 }
 .loc-halo {
   position: absolute;
-  width: 26px; height: 26px;
-  border: 2.5px solid #3b82f6;
   border-radius: 50%;
+  border: 2px dashed rgba(59, 130, 246, 0.9);
   z-index: 1;
+  animation: bh-pull 2.4s cubic-bezier(0.4, 0, 0.8, 1) infinite;
 }
-/* Top → drops down */
-.loc-halo:not(.loc-halo-2):not(.loc-halo-3) {
-  animation: halo-top 2.8s ease-in infinite;
-}
-/* Left → slides in from left */
 .loc-halo-2 {
-  animation: halo-left 2.8s ease-in infinite;
-  animation-delay: -0.93s;
+  animation-delay: -0.8s;
+  border-color: rgba(99, 160, 246, 0.7);
 }
-/* Right → slides in from right */
 .loc-halo-3 {
-  animation: halo-right 2.8s ease-in infinite;
-  animation-delay: -1.87s;
+  animation-delay: -1.6s;
+  border-color: rgba(147, 197, 253, 0.5);
 }
-@keyframes halo-top {
-  0%   { transform: translate(-50%, calc(-50% - 52px)); opacity: 0; width: 26px; height: 26px; }
-  12%  { opacity: 1; }
-  55%  { transform: translate(-50%, -50%); opacity: 0.95; width: 26px; height: 26px; }
-  72%  { transform: translate(-50%, -50%); opacity: 0.5; width: 36px; height: 36px; }
-  100% { transform: translate(-50%, -50%); opacity: 0; width: 48px; height: 48px; }
-}
-@keyframes halo-left {
-  0%   { transform: translate(calc(-50% - 52px), -50%); opacity: 0; width: 26px; height: 26px; }
-  12%  { opacity: 1; }
-  55%  { transform: translate(-50%, -50%); opacity: 0.95; width: 26px; height: 26px; }
-  72%  { transform: translate(-50%, -50%); opacity: 0.5; width: 36px; height: 36px; }
-  100% { transform: translate(-50%, -50%); opacity: 0; width: 48px; height: 48px; }
-}
-@keyframes halo-right {
-  0%   { transform: translate(calc(-50% + 52px), -50%); opacity: 0; width: 26px; height: 26px; }
-  12%  { opacity: 1; }
-  55%  { transform: translate(-50%, -50%); opacity: 0.95; width: 26px; height: 26px; }
-  72%  { transform: translate(-50%, -50%); opacity: 0.5; width: 36px; height: 36px; }
-  100% { transform: translate(-50%, -50%); opacity: 0; width: 48px; height: 48px; }
+@keyframes bh-pull {
+  0%   { width: 62px; height: 62px; transform: translate(-50%, -50%) rotate(0deg);    opacity: 0.9; }
+  15%  { opacity: 1; }
+  100% { width: 0px;  height: 0px;  transform: translate(-50%, -50%) rotate(-600deg); opacity: 0; }
 }
