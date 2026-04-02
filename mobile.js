@@ -1019,10 +1019,21 @@ async function fetchImageBase64(url) {
   const r = await fetch(url);
   if (!r.ok) return null;
   const blob = await r.blob();
+  // Convert to JPEG via canvas to ensure consistent format across browsers
   return new Promise(res => {
-    const reader = new FileReader();
-    reader.onload = () => res(reader.result.split(',')[1]);
-    reader.readAsDataURL(blob);
+    const img = new Image();
+    const objUrl = URL.createObjectURL(blob);
+    img.onload = () => {
+      const canvas = document.createElement('canvas');
+      canvas.width = img.width || 400;
+      canvas.height = img.height || 250;
+      canvas.getContext('2d').drawImage(img, 0, 0);
+      URL.revokeObjectURL(objUrl);
+      const dataUrl = canvas.toDataURL('image/jpeg', 0.85);
+      res(dataUrl.split(',')[1]);
+    };
+    img.onerror = () => { URL.revokeObjectURL(objUrl); res(null); };
+    img.src = objUrl;
   });
 }
 
