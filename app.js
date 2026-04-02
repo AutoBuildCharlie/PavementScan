@@ -380,10 +380,12 @@ function renderProjectSelector() {
   const container = document.getElementById('project-selector');
   if (!container) return;
   container.innerHTML = `
-    <div class="project-row">
-      <select id="project-dropdown" onchange="switchProject(this.value)">
+    <div class="project-row" style="padding-bottom:4px">
+      <select id="project-dropdown" onchange="switchProject(this.value)" style="flex:1;font-size:13px;font-weight:600;color:var(--text)">
         ${projects.map(p => `<option value="${p.id}" ${p.id === activeProject.id ? 'selected' : ''}>${p.name} (${p.streets.length})</option>`).join('')}
       </select>
+    </div>
+    <div class="project-row" style="padding-top:0">
       <button class="btn-project-action" onclick="addNewProject()" title="New Project">+ New</button>
       <button class="btn-project-action" onclick="renameProject('${activeProject.id}')" title="Rename">Rename</button>
       <button class="btn-project-action" onclick="exportProject()" title="Export project as JSON">Export</button>
