@@ -1253,11 +1253,32 @@ function closeLightboxMobile() {
 }
 
 // ─── STREET VIEW ───────────────────────────────────────────
-let _svMinimap = null, _svMinimapOverlay = null;
+let _svMinimap = null, _svMinimapOverlay = null, _svResizeInit = false;
+
+function initSVResize() {
+  if (_svResizeInit) return;
+  _svResizeInit = true;
+  const handle = document.getElementById('sv-resize-handle');
+  const minimap = document.getElementById('sv-minimap');
+  let startY, startH;
+  handle.addEventListener('touchstart', e => {
+    startY = e.touches[0].clientY;
+    startH = minimap.offsetHeight;
+    e.preventDefault();
+  }, { passive: false });
+  handle.addEventListener('touchmove', e => {
+    const dy = e.touches[0].clientY - startY;
+    const newH = Math.min(Math.max(startH + dy, 80), window.innerHeight * 0.7);
+    minimap.style.height = newH + 'px';
+    if (_svMinimap) google.maps.event.trigger(_svMinimap, 'resize');
+    e.preventDefault();
+  }, { passive: false });
+}
 
 function openSVAt(lat, lng, heading = 0) {
   const overlay = document.getElementById('sv-overlay');
   overlay.classList.remove('hidden');
+  initSVResize();
 
   // Init minimap
   if (!_svMinimap) {

@@ -575,7 +575,24 @@ html, body {
   height: 33vh;
   flex-shrink: 0;
   position: relative;
-  border-bottom: 2px solid var(--border);
+  min-height: 80px;
+  max-height: 70vh;
+}
+#sv-resize-handle {
+  height: 18px;
+  flex-shrink: 0;
+  background: var(--bg-card);
+  border-top: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+  display: flex; align-items: center; justify-content: center;
+  cursor: row-resize;
+  touch-action: none;
+}
+#sv-resize-handle::before {
+  content: '';
+  width: 36px; height: 4px;
+  background: #475569;
+  border-radius: 2px;
 }
 #sv-pano { flex: 1; }
 #sv-toolbar {
