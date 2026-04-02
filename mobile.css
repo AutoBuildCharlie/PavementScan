@@ -571,6 +571,14 @@ html, body {
 #sv-overlay {
   position: fixed; inset: 0; z-index: 400;
   display: flex; flex-direction: column;
+  background: #0a0e1a;
+}
+#sv-safe-area {
+  height: env(safe-area-inset-top, 50px);
+  min-height: 50px;
+  background: #0a0e1a;
+  flex-shrink: 0;
+  z-index: 10;
 }
 #sv-minimap {
   height: 33vh;

@@ -176,6 +176,7 @@
 
   <!-- ─── STREET VIEW OVERLAY ──────────────────────────── -->
   <div id="sv-overlay" class="hidden">
+    <div id="sv-safe-area"></div>
     <div id="sv-minimap"></div>
     <div id="sv-resize-handle"></div>
     <div id="sv-pano"></div>
@@ -252,7 +253,7 @@
       navigator.serviceWorker.register('sw.js').catch(() => {});
     }
   </script>
-  <script src="mobile.js?v=42"></script>
+  <script src="mobile.js?v=43"></script>
   <script async defer
     src="https://maps.googleapis.com/maps/api/js?key=AIzaSyALUzyaUCMmtVah_gcnoe-g2VGeezsPkZ8&callback=initMap&loading=async">
   </script>
