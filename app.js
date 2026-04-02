@@ -1316,12 +1316,11 @@ ${detectRR && isSlurry ? '- R&R areas must be patched before slurry seal can be 
       })
     });
 
-    // Store scan photos before AI call so they're preserved even if AI fails
-    // Cache base64 images in memory (not localStorage) so lightbox can display them
+    // Store scan photos with embedded base64 so they travel with the project on export
     street.photosScanned = validPairs.length;
     street.scanPhotos = validPairs.map(p => {
       _photoCache.set(p.hdUrl, p.base64);
-      return { url: p.hdUrl, hdUrl: p.hdUrl, label: p.label, lat: p.lat, lng: p.lng, svDate: p.svDate || null };
+      return { url: p.hdUrl, hdUrl: p.hdUrl, dataUrl: `data:image/jpeg;base64,${p.base64}`, label: p.label, lat: p.lat, lng: p.lng, svDate: p.svDate || null };
     });
 
     if (!res.ok) throw new Error(`AI proxy ${res.status}`);
@@ -2614,7 +2613,8 @@ async function _renderLightbox() {
     return;
   }
 
-  // Scan photos: use cached base64, or fetch on-demand through the worker proxy
+  // Scan photos: use embedded base64 first, then memory cache, then fetch on-demand
+  if (p.dataUrl) { img.src = p.dataUrl; return; }
   const cacheKey = p.hdUrl || p.url;
   const cached = cacheKey ? _photoCache.get(cacheKey) : null;
   if (cached) {
