@@ -39,6 +39,9 @@ function doLogin() {
 // ─── MAP INIT ──────────────────────────────────────────────
 function initMap() {
   if (!sessionStorage.getItem('cse_auth')) {
+    // Hide splash immediately — login screen needs to be visible
+    const splash = document.getElementById('loading-splash');
+    if (splash) { splash.classList.add('hidden'); setTimeout(() => splash.remove(), 300); }
     document.getElementById('login-screen').style.display = 'flex';
     document.getElementById('login-pass').addEventListener('keydown', e => { if (e.key === 'Enter') doLogin(); });
     return;
