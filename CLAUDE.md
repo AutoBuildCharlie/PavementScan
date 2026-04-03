@@ -555,7 +555,7 @@ Worker holds API keys, routes to OpenAI or Google based on `provider` param.
 
 ## 19. Current Version
 
-- **Desktop:** v270 (app.js v238, style.css v184)
+- **Desktop:** v271 (app.js v239, style.css v184)
 - **Mobile JS:** v49, mobile.css v4
 - **Service Worker:** v2
 
@@ -573,6 +573,6 @@ Check `mobile.html` for `?v=XXX` on mobile.js script.
 - **Finish Line button** — appears in highlight bar after first map click, stays visible until street is saved. Easiest way to end a curved street without toggling Curve OFF.
 - **Map image import** — drop a screenshot of a pavement plan map into import modal → AI reads street name labels → geocodes them → places gold dots. Already-pinned streets are skipped.
 - **Geocoder + intersection** — import geocodes begin and end intersections separately. Green dot = start, red dot = end. Pin.Start auto-fills both endpoints so Cal just hits Finish Line.
-- **Next to build: Retry chain** — when geocoder isn't confident, try: begin intersection → end intersection → street name only → skip. 300ms delay between calls. Fixes streets getting skipped too early. Street View verification was discussed but decided against — too slow, Cal already catches errors visually when pinning.
+- **Built (v271): Retry chain** — geocoder now tries: begin intersection → end intersection → street name only → skip. 300ms delay between each call. Streets are skipped only after all 3 options fail. If only one intersection resolves, that point is used as the gold dot instead of falling back to a redundant street name geocode.
 - **Future: AI route suggestion** — after 5-10 projects of manual ordering + notes, build "Suggest Route" button that reads `order`, `orderNote`, `orderClickPt` data.
 - **Future: backend/cloud storage** — currently localStorage only, no cross-device sync. Export/Import is the workaround. Backend would enable desktop↔mobile sync.

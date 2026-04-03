@@ -477,29 +477,40 @@ async function runImportList() {
     progressBar.style.width = Math.round(((i + 1) / rows.length) * 100) + '%';
 
     try {
-      // Geocode begin and end intersections separately for precise endpoints
-      let beginLatLng = null, endLatLng = null;
+      // Retry chain: begin intersection → end intersection → street name only → skip
+      // Each step waits 300ms. Stops as soon as a confident result is found.
+      let beginLatLng = null, endLatLng = null, geo = null;
+
       if (begin) {
         const g = await geocodeAddress(`${streetName} & ${begin}, ${city}`);
-        if (g && !g.partialMatch) beginLatLng = { lat: g.lat, lng: g.lng };
+        if (g && !g.partialMatch) {
+          beginLatLng = { lat: g.lat, lng: g.lng };
+          geo = g; // tentative gold dot location
+        }
+        await _delay(300);
       }
+
       if (end) {
         const g = await geocodeAddress(`${streetName} & ${end}, ${city}`);
-        if (g && !g.partialMatch) endLatLng = { lat: g.lat, lng: g.lng };
+        if (g && !g.partialMatch) {
+          endLatLng = { lat: g.lat, lng: g.lng };
+          if (!geo) geo = g; // fallback if begin didn't resolve
+        }
+        await _delay(300);
       }
 
-      // Midpoint for the gold dot — average of begin/end if both found, else geocode street name
-      let geo = null;
+      // Both endpoints found → average them for the gold dot
       if (beginLatLng && endLatLng) {
         geo = { lat: (beginLatLng.lat + endLatLng.lat) / 2, lng: (beginLatLng.lng + endLatLng.lng) / 2, partialMatch: false };
-      } else {
+      } else if (!geo) {
+        // Intersections failed — last resort: street name only
         geo = await geocodeAddress(`${streetName}, ${city}`);
+        await _delay(300);
       }
 
-      // Skip if geocoder couldn't find it or wasn't confident
+      // Skip if still nothing confident
       if (!geo || geo.partialMatch) {
         skipped.push(streetName);
-        await _delay(200);
         continue;
       }
 
@@ -541,8 +552,8 @@ async function runImportList() {
     } catch (e) {
       console.warn('Import error for', streetName, e);
       skipped.push(streetName);
+      await _delay(300);
     }
-    await _delay(200);
   }
 
   renderStreetList(); placeAllMarkers(); updateStats(); fitMapToMarkers();
