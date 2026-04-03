@@ -336,7 +336,7 @@ async function handleImportDrop(e) {
     const messages = [{
       role: 'user',
       content: [
-        { type: 'text', text: 'This is a pavement plan table with 3 columns: column 1 is the street name, column 2 is the BEGIN intersection (where the work starts), column 3 is the END intersection (where the work ends). Read every data row left to right. Include duplicate street names — do not skip any row. For each row output exactly: street name - begin intersection - end intersection. Example: Elm Ave - Locust Ave - E Blithedale Ave. One row per line. No headers, no extra text.' },
+        { type: 'text', text: 'This is a pavement plan table with 3 columns: column 1 is the street name, column 2 is the BEGIN intersection (where the work starts), column 3 is the END intersection (where the work ends). Read every data row left to right. Include duplicate street names — do not skip any row. For each row output exactly: street name - begin intersection - end intersection. Example: Elm Ave - Locust Ave - E Blithedale Ave. One row per line. No headers, no extra text. IMPORTANT: Copy the text exactly as printed — do not expand, interpret, or replace abbreviations. If a cell says "COP/315 BUENA VISTA" write it exactly as "COP/315 BUENA VISTA", not "Corte Buena Vista" or any other guess.' },
         ...images.map(img => ({ type: 'image_url', image_url: { url: `data:image/jpeg;base64,${img}` } }))
       ]
     }];
