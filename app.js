@@ -260,7 +260,7 @@ async function handleImportDrop(e) {
     const messages = [{
       role: 'user',
       content: [
-        { type: 'text', text: 'This is a pavement work order or street list document. Extract every street name. Return ONLY the street names, one per line, no numbers, no other text.' },
+        { type: 'text', text: 'This is a pavement work order or street list document. It has a table with Street, Begin, and End columns. Extract every row. Return one street per line in this exact format: STREET NAME | BEGIN | END\nExample: Elm Ave | Locust Ave | E Blithedale Ave\nIf begin or end is missing, write UNKNOWN. No extra text, no numbers, no headers.' },
         ...images.map(img => ({ type: 'image_url', image_url: { url: `data:image/jpeg;base64,${img}` } }))
       ]
     }];
@@ -298,10 +298,11 @@ function parseImportList(text) {
   for (const line of text.split('\n')) {
     const trimmed = line.trim();
     if (!trimmed) continue;
-    // Accept tab-separated (Street | Begin | End) or plain street names — always take first column
-    const firstCol = trimmed.split('\t')[0].trim();
+    // Accept "Street | Begin | End" format or plain street names
+    const parts = trimmed.split('|').map(s => s.trim());
+    const firstCol = parts[0].split('\t')[0].trim();
     if (!firstCol) continue;
-    if (firstCol.toLowerCase() === 'street' || firstCol.toLowerCase() === 'street name') continue; // header row
+    if (firstCol.toLowerCase() === 'street' || firstCol.toLowerCase() === 'street name') continue;
     names.push(firstCol);
   }
   return names;
