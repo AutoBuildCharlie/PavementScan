@@ -2872,6 +2872,8 @@ function updateStats() {
     document.getElementById('total-sy').textContent = formatNumber(Math.round((activeStreet.sqft || 0) / 9));
     document.getElementById('stat-rating').querySelector('.stat-label').textContent = 'Rating';
     document.getElementById('avg-rating').textContent = ratingLabel(activeStreet.rating);
+    document.getElementById('stat-miles').querySelector('.stat-label').textContent = 'Miles';
+    document.getElementById('total-miles').textContent = activeStreet.length ? (activeStreet.length / 5280).toFixed(2) : '—';
     return;
   }
 
@@ -2882,6 +2884,8 @@ function updateStats() {
   const totalSqft = streets.reduce((sum, s) => sum + (s.sqft || 0), 0);
   document.getElementById('total-sqft').textContent = formatNumber(totalSqft);
   document.getElementById('total-sy').textContent = formatNumber(Math.round(totalSqft / 9));
+  const totalFt = streets.reduce((sum, s) => sum + (s.length || 0), 0);
+  document.getElementById('total-miles').textContent = (totalFt / 5280).toFixed(2);
 
   // Average rating (Level 1-4)
   document.getElementById('stat-rating').querySelector('.stat-label').textContent = 'Avg Rating';
