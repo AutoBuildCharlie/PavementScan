@@ -240,11 +240,11 @@ async function handleImportDrop(e) {
         'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
     }
 
-    dropStatus.textContent = 'Reading PDF text…';
+    dropStatus.textContent = 'Reading PDF…';
     const arrayBuffer = await file.arrayBuffer();
     const pdf = await window.pdfjsLib.getDocument({ data: arrayBuffer }).promise;
 
-    // Extract raw text from all pages (no image needed)
+    // Try text extraction first (works for text-based PDFs)
     let rawText = '';
     for (let p = 1; p <= pdf.numPages; p++) {
       const page = await pdf.getPage(p);
@@ -252,14 +252,38 @@ async function handleImportDrop(e) {
       rawText += content.items.map(item => item.str).join(' ') + '\n';
     }
 
-    if (!rawText.trim()) throw new Error('No text found in PDF');
+    let messages;
+    const hasText = rawText.trim().length > 100;
 
-    dropStatus.textContent = 'AI parsing street names…';
-
-    const messages = [{
-      role: 'user',
-      content: `This is raw text extracted from a pavement work order. It contains a table of streets with Street, Begin, and End columns. Extract every street row. Return one per line in this exact format: STREET NAME | BEGIN | END\nExample: Elm Ave | Locust Ave | E Blithedale Ave\nIf begin or end is missing write UNKNOWN. Return only the data lines, no headers, no extra text.\n\nDocument text:\n${rawText}`
-    }];
+    if (hasText) {
+      // Text-based PDF — send raw text, ask for Street | Begin | End
+      dropStatus.textContent = 'AI parsing street names…';
+      messages = [{
+        role: 'user',
+        content: `This is text from a pavement work order with a table of streets. Extract every street row. Return one per line: STREET NAME | BEGIN | END\nExample: Elm Ave | Locust Ave | E Blithedale Ave\nIf begin or end is missing write UNKNOWN. Data lines only, no headers.\n\nText:\n${rawText}`
+      }];
+    } else {
+      // Scanned PDF — render pages as images
+      dropStatus.textContent = 'Rendering pages…';
+      const images = [];
+      for (let p = 1; p <= Math.min(pdf.numPages, 4); p++) {
+        const page = await pdf.getPage(p);
+        const viewport = page.getViewport({ scale: 1.8 });
+        const canvas = document.createElement('canvas');
+        canvas.width = viewport.width;
+        canvas.height = viewport.height;
+        await page.render({ canvasContext: canvas.getContext('2d'), viewport }).promise;
+        images.push(canvas.toDataURL('image/jpeg', 0.85).split(',')[1]);
+      }
+      dropStatus.textContent = 'AI reading street names…';
+      messages = [{
+        role: 'user',
+        content: [
+          { type: 'text', text: 'This document lists streets for pavement work. Extract every street name. Return only street names, one per line, nothing else.' },
+          ...images.map(img => ({ type: 'image_url', image_url: { url: `data:image/jpeg;base64,${img}` } }))
+        ]
+      }];
+    }
 
     const res = await fetch('https://cse-worker.aestheticcal22.workers.dev', {
       method: 'POST',
@@ -269,7 +293,7 @@ async function handleImportDrop(e) {
     const data = await res.json();
     const extracted = data.choices?.[0]?.message?.content?.trim() || '';
 
-    if (!extracted || extracted.toLowerCase().includes("i'm sorry")) throw new Error('AI could not parse the document');
+    if (!extracted || extracted.toLowerCase().startsWith("i'm sorry") || extracted.toLowerCase().startsWith('certainly')) throw new Error('AI could not parse the document');
 
     const count = extracted.split('\n').filter(Boolean).length;
     document.getElementById('import-list').value = extracted;
