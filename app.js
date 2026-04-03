@@ -1975,7 +1975,6 @@ function placeAllMarkers() {
     const el = document.createElement('div');
     el.title = street.name;
     el.style.cssText = 'width:18px;height:18px;background:#f59e0b;border:2px solid #fff;border-radius:50%;cursor:pointer;box-shadow:0 0 0 3px rgba(245,158,11,0.3);';
-    el.innerHTML = '<div style="position:absolute;top:-18px;left:50%;transform:translateX(-50%);font-size:11px;white-space:nowrap;background:rgba(0,0,0,0.7);color:#f59e0b;padding:1px 5px;border-radius:3px;pointer-events:none;font-weight:600">📍</div>';
 
     const marker = makeMarker({ position: { lat: street.lat, lng: street.lng }, map, title: street.name, content: el });
     marker.addEventListener('gmp-click', () => _orderMode ? assignOrderToStreet(street.id, { lat: street.lat, lng: street.lng }) : selectStreet(street.id));
