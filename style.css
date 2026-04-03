@@ -2011,6 +2011,22 @@ body {
   }
 }
 
+/* ─── PDF DROP ZONE ───────────────────────────────────────── */
+#import-drop-zone {
+  border: 2px dashed rgba(99,102,241,0.4);
+  border-radius: 10px;
+  padding: 20px;
+  text-align: center;
+  cursor: pointer;
+  transition: border-color 0.15s, background 0.15s;
+  margin-bottom: 4px;
+  background: rgba(99,102,241,0.04);
+}
+#import-drop-zone.drag-over {
+  border-color: #6366f1;
+  background: rgba(99,102,241,0.12);
+}
+
 /* ─── ORDER & DUE DATE BADGES ─────────────────────────────── */
 .order-badge {
   display: inline-flex; align-items: center; justify-content: center;

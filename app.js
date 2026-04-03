@@ -209,6 +209,85 @@ function closeImportModal(e) {
   document.getElementById('import-overlay').classList.add('hidden');
 }
 
+// ─── PDF DROP IMPORT ───────────────────────────────────────
+async function handleImportDrop(e) {
+  e.preventDefault();
+  document.getElementById('import-drop-zone').classList.remove('drag-over');
+
+  const file = [...e.dataTransfer.files].find(f => f.type === 'application/pdf' || f.name.endsWith('.pdf'));
+  if (!file) { showToast('Drop a PDF file'); return; }
+
+  const dropContent = document.getElementById('import-drop-content');
+  const dropLoading = document.getElementById('import-drop-loading');
+  const dropStatus = document.getElementById('import-drop-status');
+
+  dropContent.classList.add('hidden');
+  dropLoading.classList.remove('hidden');
+  dropStatus.textContent = 'Loading PDF…';
+
+  try {
+    // Load PDF.js on demand
+    if (!window.pdfjsLib) {
+      await new Promise((resolve, reject) => {
+        const s = document.createElement('script');
+        s.src = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js';
+        s.onload = resolve; s.onerror = reject;
+        document.head.appendChild(s);
+      });
+      window.pdfjsLib.GlobalWorkerOptions.workerSrc =
+        'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+    }
+
+    dropStatus.textContent = 'Rendering pages…';
+    const arrayBuffer = await file.arrayBuffer();
+    const pdf = await window.pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+
+    const images = [];
+    for (let p = 1; p <= Math.min(pdf.numPages, 4); p++) {
+      const page = await pdf.getPage(p);
+      const viewport = page.getViewport({ scale: 1.8 });
+      const canvas = document.createElement('canvas');
+      canvas.width = viewport.width;
+      canvas.height = viewport.height;
+      await page.render({ canvasContext: canvas.getContext('2d'), viewport }).promise;
+      images.push(canvas.toDataURL('image/jpeg', 0.85).split(',')[1]);
+    }
+
+    dropStatus.textContent = 'AI reading street names…';
+
+    const messages = [{
+      role: 'user',
+      content: [
+        { type: 'text', text: 'This is a pavement work order or street list document. Extract every street name. Return ONLY the street names, one per line, no numbers, no other text.' },
+        ...images.map(img => ({ type: 'image_url', image_url: { url: `data:image/jpeg;base64,${img}` } }))
+      ]
+    }];
+
+    const res = await fetch('https://cse-worker.aestheticcal22.workers.dev', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ provider: 'openai', model: 'gpt-4o', messages })
+    });
+    const data = await res.json();
+    const extracted = data.choices?.[0]?.message?.content?.trim() || '';
+
+    if (!extracted) throw new Error('No street names found');
+
+    document.getElementById('import-list').value = extracted;
+    dropStatus.textContent = `Done — ${extracted.split('\n').filter(Boolean).length} streets found`;
+    setTimeout(() => {
+      dropLoading.classList.add('hidden');
+      dropContent.classList.remove('hidden');
+    }, 2000);
+
+  } catch (err) {
+    console.error('PDF import error:', err);
+    dropLoading.classList.add('hidden');
+    dropContent.classList.remove('hidden');
+    showToast('Could not read PDF — try pasting manually');
+  }
+}
+
 function parseImportList(text) {
   const names = [];
   for (const line of text.split('\n')) {

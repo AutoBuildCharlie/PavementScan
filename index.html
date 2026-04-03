@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>PavementScan</title>
-  <link rel="stylesheet" href="style.css?v=183">
+  <link rel="stylesheet" href="style.css?v=184">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 </head>
@@ -234,14 +234,28 @@
     <div class="modal" onclick="event.stopPropagation()" style="max-width:480px">
       <button class="btn-close" onclick="closeImportModal()" style="position:absolute;top:10px;right:14px;">&times;</button>
       <h3>&#8595; Import Street List</h3>
-      <p style="font-size:12px;color:var(--text-muted);margin:4px 0 14px">Paste your street list — one name per line, or from a spreadsheet. Streets will be added to your list for you to pin on the map.</p>
       <div class="form-group">
         <label>City &amp; State</label>
         <input type="text" id="import-city" placeholder="e.g. Mill Valley, CA" style="width:100%">
       </div>
-      <div class="form-group">
-        <label>Street Names</label>
-        <textarea id="import-list" rows="8" placeholder="Elm Ave&#10;Catalpa Ave&#10;Walnut Ave&#10;Miller Ave&#10;..." style="font-size:12px;font-family:monospace"></textarea>
+      <!-- PDF Drop Zone -->
+      <div id="import-drop-zone"
+        ondragover="event.preventDefault();this.classList.add('drag-over')"
+        ondragleave="this.classList.remove('drag-over')"
+        ondrop="handleImportDrop(event)">
+        <div id="import-drop-content">
+          <span style="font-size:28px">📄</span>
+          <div style="font-weight:600;margin:6px 0 2px">Drop PDF here</div>
+          <div style="font-size:11px;color:var(--text-muted)">AI will read it and extract the street names</div>
+        </div>
+        <div id="import-drop-loading" class="hidden" style="text-align:center;padding:8px 0">
+          <div class="scan-spinner" style="width:24px;height:24px;border-width:3px;margin:0 auto 8px"></div>
+          <div id="import-drop-status" style="font-size:12px;color:var(--text-muted)">Reading PDF…</div>
+        </div>
+      </div>
+      <div style="text-align:center;font-size:11px;color:var(--text-muted);margin:8px 0">— or paste manually —</div>
+      <div class="form-group" style="margin-bottom:8px">
+        <textarea id="import-list" rows="6" placeholder="Elm Ave&#10;Catalpa Ave&#10;Walnut Ave&#10;Miller Ave&#10;..." style="font-size:12px;font-family:monospace"></textarea>
       </div>
       <div id="import-progress" class="hidden" style="margin-bottom:12px">
         <div style="background:var(--bg-dark);border-radius:4px;height:6px;overflow:hidden;margin-bottom:6px">
@@ -305,7 +319,7 @@
   </div>
 
   <!-- ─── SCRIPTS ─────────────────────────────────────────── -->
-  <script src="app.js?v=198"></script>
+  <script src="app.js?v=199"></script>
   <script async defer
     src="https://maps.googleapis.com/maps/api/js?key=AIzaSyALUzyaUCMmtVah_gcnoe-g2VGeezsPkZ8&callback=initMap&loading=async&libraries=marker">
   </script>
