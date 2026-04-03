@@ -244,62 +244,46 @@ async function handleImportDrop(e) {
     const arrayBuffer = await file.arrayBuffer();
     const pdf = await window.pdfjsLib.getDocument({ data: arrayBuffer }).promise;
 
-    // Try text extraction first (works for text-based PDFs)
-    let rawText = '';
-    for (let p = 1; p <= pdf.numPages; p++) {
+    // Render all pages as images — works for both scanned and text PDFs
+    dropStatus.textContent = 'Rendering pages…';
+    const images = [];
+    for (let p = 1; p <= Math.min(pdf.numPages, 4); p++) {
       const page = await pdf.getPage(p);
-      const content = await page.getTextContent();
-      rawText += content.items.map(item => item.str).join(' ') + '\n';
+      const viewport = page.getViewport({ scale: 2.0 });
+      const canvas = document.createElement('canvas');
+      canvas.width = viewport.width;
+      canvas.height = viewport.height;
+      await page.render({ canvasContext: canvas.getContext('2d'), viewport }).promise;
+      images.push(canvas.toDataURL('image/jpeg', 0.9).split(',')[1]);
     }
 
-    let messages;
-    const hasText = rawText.trim().length > 100;
+    dropStatus.textContent = 'AI reading table…';
 
-    if (hasText) {
-      // Text-based PDF — send raw text, ask for Street | Begin | End
-      dropStatus.textContent = 'AI parsing street names…';
-      messages = [{
-        role: 'user',
-        content: `This is text from a pavement work order with a table of streets. Extract every street row. Return one per line: STREET NAME | BEGIN | END\nExample: Elm Ave | Locust Ave | E Blithedale Ave\nIf begin or end is missing write UNKNOWN. Data lines only, no headers.\n\nText:\n${rawText}`
-      }];
-    } else {
-      // Scanned PDF — render pages as images
-      dropStatus.textContent = 'Rendering pages…';
-      const images = [];
-      for (let p = 1; p <= Math.min(pdf.numPages, 4); p++) {
-        const page = await pdf.getPage(p);
-        const viewport = page.getViewport({ scale: 1.8 });
-        const canvas = document.createElement('canvas');
-        canvas.width = viewport.width;
-        canvas.height = viewport.height;
-        await page.render({ canvasContext: canvas.getContext('2d'), viewport }).promise;
-        images.push(canvas.toDataURL('image/jpeg', 0.85).split(',')[1]);
-      }
-      dropStatus.textContent = 'AI reading street names…';
-      messages = [{
-        role: 'user',
-        content: [
-          { type: 'text', text: 'This is a pavement assessment document. It contains a table listing streets. Extract every street name from the table. Return only the street names, one per line, no numbers, no other text.' },
-          ...images.map(img => ({ type: 'image_url', image_url: { url: `data:image/jpeg;base64,${img}` } }))
-        ]
-      }];
-    }
+    // Use Gemini — excellent at table extraction, no content refusals
+    const messages = [{
+      role: 'user',
+      content: [
+        { type: 'text', text: 'This image is from a pavement work order. Find the table with Street, Begin, and End columns. List every data row. Format: street | begin | end\nInclude all rows even if the street name repeats. No headers, no extra text.' },
+        ...images.map(img => ({ type: 'image_url', image_url: { url: `data:image/jpeg;base64,${img}` } }))
+      ]
+    }];
 
     const res = await fetch('https://cse-worker.aestheticcal22.workers.dev', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ provider: 'openai', model: 'gpt-4o', messages })
+      body: JSON.stringify({ provider: 'google', model: 'gemini-2.0-flash', messages })
     });
     const data = await res.json();
-    const extracted = data.choices?.[0]?.message?.content?.trim() || '';
+    const extracted = (data.candidates?.[0]?.content?.parts?.[0]?.text ||
+                       data.choices?.[0]?.message?.content || '').trim();
 
-    if (!extracted || extracted.toLowerCase().startsWith("i'm sorry") || extracted.toLowerCase().startsWith('certainly')) throw new Error('AI could not parse the document');
+    if (!extracted) throw new Error('AI could not read the table');
 
     const count = extracted.split('\n').filter(Boolean).length;
     document.getElementById('import-list').value = extracted;
     document.getElementById('import-review-notice').classList.remove('hidden');
-    document.getElementById('import-list-label').textContent = `Review Street Names (${count} found) — edit if needed`;
-    dropStatus.textContent = `${count} streets found — review the list below`;
+    document.getElementById('import-list-label').textContent = `Review (${count} rows found) — edit if needed`;
+    dropStatus.textContent = `${count} rows found — review the list below`;
     setTimeout(() => {
       dropLoading.classList.add('hidden');
       dropContent.classList.remove('hidden');
