@@ -194,6 +194,28 @@ function exportProject() {
   showToast('Project exported');
 }
 
+// ─── MAP STREET SEARCH ─────────────────────────────────────
+function mapStreetSearch(query) {
+  const results = document.getElementById('map-street-search-results');
+  if (!results) return;
+  const q = query.trim().toLowerCase();
+  if (!q) { results.style.display = 'none'; results.innerHTML = ''; return; }
+  const matches = streets.filter(s => s.name.toLowerCase().includes(q)).slice(0, 8);
+  if (matches.length === 0) { results.style.display = 'none'; results.innerHTML = ''; return; }
+  results.innerHTML = matches.map(s => `<div onclick="mapStreetSearchSelect('${s.id}')" style="padding:8px 12px;cursor:pointer;font-size:13px;color:#f1f5f9;border-bottom:1px solid rgba(255,255,255,0.06)" onmouseover="this.style.background='#334155'" onmouseout="this.style.background=''">${escHtml(s.name)}</div>`).join('');
+  results.style.display = 'block';
+}
+
+function mapStreetSearchSelect(id) {
+  const input = document.getElementById('map-street-search-input');
+  const results = document.getElementById('map-street-search-results');
+  if (input) input.value = '';
+  if (results) { results.style.display = 'none'; results.innerHTML = ''; }
+  selectStreet(id);
+  const street = streets.find(s => s.id === id);
+  if (street && street.lat && street.lng) map.panTo({ lat: street.lat, lng: street.lng });
+}
+
 // ─── IMPORT STREET LIST ────────────────────────────────────
 
 function openImportModal() {

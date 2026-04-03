@@ -154,6 +154,10 @@
     <!-- CENTER — Map -->
     <section id="map-container">
       <div id="map"></div>
+      <div id="map-street-search" style="position:absolute;top:10px;left:50%;transform:translateX(-50%);z-index:5;display:flex;gap:0;">
+        <input id="map-street-search-input" type="text" placeholder="Find street…" oninput="mapStreetSearch(this.value)" onkeydown="if(event.key==='Escape')this.value=''" style="width:220px;padding:7px 12px;border-radius:6px 0 0 6px;border:none;background:#1e293b;color:#f1f5f9;font-size:13px;outline:none;box-shadow:0 2px 8px rgba(0,0,0,0.4);">
+        <div id="map-street-search-results" style="position:absolute;top:100%;left:0;right:0;background:#1e293b;border-radius:0 0 6px 6px;overflow:hidden;box-shadow:0 4px 12px rgba(0,0,0,0.5);display:none;max-height:240px;overflow-y:auto;"></div>
+      </div>
       <div id="streetview-panel" class="hidden">
         <div id="streetview-pano"></div>
         <div class="sv-toolbar">
@@ -327,7 +331,7 @@
   </div>
 
   <!-- ─── SCRIPTS ─────────────────────────────────────────── -->
-  <script src="app.js?v=216"></script>
+  <script src="app.js?v=217"></script>
   <script async defer
     src="https://maps.googleapis.com/maps/api/js?key=AIzaSyALUzyaUCMmtVah_gcnoe-g2VGeezsPkZ8&callback=initMap&loading=async&libraries=marker">
   </script>
