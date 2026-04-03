@@ -559,15 +559,28 @@ async function runImportList() {
   renderStreetList(); placeAllMarkers(); updateStats(); fitMapToMarkers();
   document.getElementById('import-btn').disabled = false;
 
-  let summary = `Done — ${added} streets added to your list.`;
-  if (skipped.length) summary += ` ${skipped.length} couldn't be located: ${skipped.join(', ')}.`;
-  progressText.textContent = summary;
   progressBar.style.width = '100%';
 
-  setTimeout(() => {
-    closeImportModal();
-    showToast(`${added} streets imported — pin them on the map to begin`);
-  }, 3000);
+  if (skipped.length) {
+    progressText.innerHTML = `
+      <div style="color:var(--accent-amber);font-weight:600;margin-bottom:6px">
+        ⚠ ${added} streets added — ${skipped.length} couldn't be located:
+      </div>
+      <div style="background:rgba(245,158,11,0.08);border:1px solid rgba(245,158,11,0.3);border-radius:6px;padding:8px 10px;max-height:120px;overflow-y:auto;font-size:12px;line-height:1.8">
+        ${skipped.map(s => `• ${escHtml(s)}`).join('<br>')}
+      </div>
+      <div style="color:var(--text-muted);font-size:11px;margin-top:6px">
+        These streets weren't found after trying begin/end intersections and street name. You can add them manually.
+      </div>
+      <button onclick="closeImportModal();showToast('${added} streets imported')" style="margin-top:10px;padding:6px 16px;background:var(--accent-blue);color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:13px">OK, close</button>
+    `;
+  } else {
+    progressText.textContent = `Done — ${added} streets added to your list.`;
+    setTimeout(() => {
+      closeImportModal();
+      showToast(`${added} streets imported — pin them on the map to begin`);
+    }, 2000);
+  }
 }
 
 // ─── DUE DATE HELPERS ──────────────────────────────────────
