@@ -262,7 +262,7 @@ async function handleImportDrop(e) {
     const messages = [{
       role: 'user',
       content: [
-        { type: 'text', text: 'Read the table in this image. Write out every row including rows where the street name repeats. For each row write: street name, then a dash, then the begin intersection, then a dash, then the end intersection. Example: Elm Ave - Locust Ave - E Blithedale Ave. One row per line. No headers.' },
+        { type: 'text', text: 'This is a pavement plan table with 3 columns: column 1 is the street name, column 2 is the BEGIN intersection (where the work starts), column 3 is the END intersection (where the work ends). Read every data row left to right. Include duplicate street names — do not skip any row. For each row output exactly: street name - begin intersection - end intersection. Example: Elm Ave - Locust Ave - E Blithedale Ave. One row per line. No headers, no extra text.' },
         ...images.map(img => ({ type: 'image_url', image_url: { url: `data:image/jpeg;base64,${img}` } }))
       ]
     }];
