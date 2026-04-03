@@ -259,11 +259,10 @@ async function handleImportDrop(e) {
 
     dropStatus.textContent = 'AI reading table…';
 
-    // Use Gemini — excellent at table extraction, no content refusals
     const messages = [{
       role: 'user',
       content: [
-        { type: 'text', text: 'This image is from a pavement work order. Find the table with Street, Begin, and End columns. List every data row. Format: street | begin | end\nInclude all rows even if the street name repeats. No headers, no extra text.' },
+        { type: 'text', text: 'Read the table in this image. Write out every row including rows where the street name repeats. For each row write: street name, then a dash, then the begin intersection, then a dash, then the end intersection. Example: Elm Ave - Locust Ave - E Blithedale Ave. One row per line. No headers.' },
         ...images.map(img => ({ type: 'image_url', image_url: { url: `data:image/jpeg;base64,${img}` } }))
       ]
     }];
@@ -271,13 +270,12 @@ async function handleImportDrop(e) {
     const res = await fetch('https://cse-worker.aestheticcal22.workers.dev', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ provider: 'google', model: 'gemini-2.0-flash', messages })
+      body: JSON.stringify({ provider: 'openai', model: 'gpt-4o', messages })
     });
     const data = await res.json();
-    const extracted = (data.candidates?.[0]?.content?.parts?.[0]?.text ||
-                       data.choices?.[0]?.message?.content || '').trim();
+    const extracted = (data.choices?.[0]?.message?.content || '').trim();
 
-    if (!extracted) throw new Error('AI could not read the table');
+    if (!extracted || extracted.toLowerCase().startsWith("i'm sorry")) throw new Error('AI could not read the table');
 
     const count = extracted.split('\n').filter(Boolean).length;
     document.getElementById('import-list').value = extracted;
@@ -302,7 +300,7 @@ function parseImportList(text) {
   for (const line of text.split('\n')) {
     const trimmed = line.trim();
     if (!trimmed) continue;
-    const parts = trimmed.split('|').map(s => s.trim());
+    const parts = (trimmed.includes('|') ? trimmed.split('|') : trimmed.split(' - ')).map(s => s.trim());
     const name = parts[0].split('\t')[0].trim();
     if (!name) continue;
     if (name.toLowerCase() === 'street' || name.toLowerCase() === 'street name') continue;
