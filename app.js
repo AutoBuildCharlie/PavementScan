@@ -1119,7 +1119,7 @@ function confirmStreetName() {
         const layout = await analyzeLaneLayout(targetStreet);
         if (layout) targetStreet.laneLayout = layout;
       }
-      saveStreets(); renderStreetList(); selectStreet(targetStreet.id); placeAllMarkers(); updateStats();
+      saveStreets(); drawAllHighlights(); renderStreetList(); selectStreet(targetStreet.id); placeAllMarkers(); updateStats();
     }).catch(e => {
       console.warn('Scan failed, retrying once…', e);
       analyzeStreetView(targetStreet).then(async analysis => {
@@ -1128,11 +1128,11 @@ function confirmStreetName() {
         targetStreet.ravelingAlert = analysis.ravelingAlert || false; targetStreet.ravelingNotes = analysis.ravelingNotes || '';
         targetStreet.rrAlert = analysis.rrAlert || false; targetStreet.rrNotes = analysis.rrNotes || '';
         targetStreet.scannedAt = new Date().toISOString();
-        saveStreets(); renderStreetList(); selectStreet(targetStreet.id); placeAllMarkers(); updateStats();
+        saveStreets(); drawAllHighlights(); renderStreetList(); selectStreet(targetStreet.id); placeAllMarkers(); updateStats();
       }).catch(e2 => {
         targetStreet.rating = 'pending';
         targetStreet.analysis = '';
-        saveStreets(); renderStreetList(); selectStreet(targetStreet.id);
+        saveStreets(); drawAllHighlights(); renderStreetList(); selectStreet(targetStreet.id);
         showToast('Scan failed — tap Rescan to try again', 5000);
       });
     });
