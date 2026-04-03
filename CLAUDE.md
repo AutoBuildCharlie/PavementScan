@@ -555,7 +555,7 @@ Worker holds API keys, routes to OpenAI or Google based on `provider` param.
 
 ## 19. Current Version
 
-- **Desktop:** v273 (app.js v241, style.css v184)
+- **Desktop:** v274 (app.js v242, style.css v184)
 - **Mobile JS:** v49, mobile.css v4
 - **Service Worker:** v2
 
