@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>PavementScan</title>
-  <link rel="stylesheet" href="style.css?v=182">
+  <link rel="stylesheet" href="style.css?v=183">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 </head>
@@ -95,17 +95,9 @@
   <!-- ─── MAIN LAYOUT ────────────────────────────────────── -->
   <main id="app-main">
 
-    <!-- LEFT PANEL — Street List -->
+    <!-- LEFT PANEL -->
     <aside id="street-panel">
       <div class="project-bar" id="project-selector"></div>
-      <div class="panel-header">
-        <h2>Streets</h2>
-      </div>
-      <div class="search-bar">
-        <input type="text" id="search-input" placeholder="Search address or intersection (Ball Rd &amp; Harbor Blvd)" onkeydown="if(event.key==='Enter')searchLocation()">
-        <button class="btn-search" onclick="searchLocation()" title="Search">&#128269;</button>
-        <button class="btn-nearme" onclick="goToMyLocation()" title="Near Me">&#9673;</button>
-      </div>
       <div class="quick-actions">
         <button class="qa-btn qa-highlight" id="btn-pin" onclick="startFreeHighlight()" title="Draw a street — click start then end">
           <span class="qa-icon">&#128204;</span> <span id="btn-pin-label">Pin.Start</span>
@@ -144,6 +136,11 @@
             <button onclick="skipOrderNote()" style="background:none;border:1px solid rgba(245,158,11,0.4);color:#f59e0b;border-radius:4px;padding:4px 8px;font-size:11px;cursor:pointer">Skip</button>
           </div>
         </div>
+      </div>
+      <div class="search-bar">
+        <input type="text" id="search-input" placeholder="Search address or intersection (Ball Rd &amp; Harbor Blvd)" onkeydown="if(event.key==='Enter')searchLocation()">
+        <button class="btn-search" onclick="searchLocation()" title="Search">&#128269;</button>
+        <button class="btn-nearme" onclick="goToMyLocation()" title="Near Me">&#9673;</button>
       </div>
       <div id="street-list" class="street-list">
         <div class="empty-state">No streets added yet.<br>Use <strong>Pin.Start</strong> to draw a street.</div>
@@ -312,7 +309,7 @@
   </div>
 
   <!-- ─── SCRIPTS ─────────────────────────────────────────── -->
-  <script src="app.js?v=194"></script>
+  <script src="app.js?v=197"></script>
   <script async defer
     src="https://maps.googleapis.com/maps/api/js?key=AIzaSyALUzyaUCMmtVah_gcnoe-g2VGeezsPkZ8&callback=initMap&loading=async&libraries=marker">
   </script>

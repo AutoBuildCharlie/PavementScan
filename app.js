@@ -1908,11 +1908,12 @@ function placeAllMarkers() {
 
   streets.forEach(street => {
     const hasLine = street.path && street.path.length >= 2;
+    if (hasLine) return; // streets with polylines are clickable directly — no dot needed
     const marker = makeMarker({
       position: { lat: street.lat, lng: street.lng },
       map: map,
       title: street.name,
-      content: makeDotContent(ratingColor(street.rating), hasLine ? 12 : 16, '#fff', hasLine ? 0 : 1)
+      content: makeDotContent(ratingColor(street.rating), 16, '#fff', 1)
     });
 
     marker.addEventListener('gmp-click', () => _orderMode ? assignOrderToStreet(street.id, { lat: street.lat, lng: street.lng }) : selectStreet(street.id));
@@ -1958,19 +1959,31 @@ function isStreetViewOpen() {
   return streetViewPano && !document.getElementById('streetview-panel').classList.contains('hidden');
 }
 
+// ─── PANEL TAB SWITCHING ───────────────────────────────────
+function switchPanelTab(tab) {
+  document.getElementById('tab-btn-project').classList.toggle('active', tab === 'project');
+  document.getElementById('tab-btn-streets').classList.toggle('active', tab === 'streets');
+  document.getElementById('panel-project').classList.toggle('hidden', tab !== 'project');
+  document.getElementById('panel-streets').classList.toggle('hidden', tab !== 'streets');
+}
+
 function renderStreetList() {
   const container = document.getElementById('street-list');
 
   if (streets.length === 0) {
-    container.innerHTML = '<div class="empty-state">No streets added yet.<br>Click <strong>+ Add Street</strong> to begin.</div>';
+    container.innerHTML = '<div class="empty-state">No streets added yet.<br>Go to <strong>Project</strong> tab and use <strong>Pin.Start</strong> to draw a street.</div>';
     return;
   }
 
   // When Street View is open and a street is selected, only show that street
   const svOpen = isStreetViewOpen();
 
-  // Sort: completed streets always at bottom, then by order
-  const sortedStreets = [...streets].sort((a, b) => {
+  // Separate drawn vs undrawn
+  const needsPinning = streets.filter(s => !s.path || s.path.length < 2);
+  const onMap = streets.filter(s => s.path && s.path.length >= 2);
+
+  // Sort onMap: completed at bottom, then by order
+  const sortedOnMap = [...onMap].sort((a, b) => {
     if (a.completed && !b.completed) return 1;
     if (!a.completed && b.completed) return -1;
     if (a.order != null && b.order != null) return a.order - b.order;
@@ -1979,13 +1992,24 @@ function renderStreetList() {
     return 0;
   });
 
+  const sortedStreets = [...needsPinning, ...sortedOnMap];
   const visibleStreets = (svOpen && activeStreetId) ? sortedStreets.filter(s => s.id === activeStreetId) : sortedStreets;
 
   // Show a "back to all" link when filtered
   const backLink = (svOpen && activeStreetId && streets.length > 1) ?
     `<div class="street-list-back" onclick="closeDetailPanel();updateStats()">← Show all ${streets.length} streets</div>` : '';
 
-  container.innerHTML = backLink + visibleStreets.map(s => {
+  const showSectionHeaders = !svOpen && needsPinning.length > 0 && onMap.length > 0;
+
+  container.innerHTML = backLink + visibleStreets.map((s, idx) => {
+    const isNeedsPinning = !s.path || s.path.length < 2;
+    const prevIsNeedsPinning = idx > 0 ? (!visibleStreets[idx-1].path || visibleStreets[idx-1].path.length < 2) : true;
+
+    let sectionHeader = '';
+    if (showSectionHeaders) {
+      if (idx === 0 && isNeedsPinning) sectionHeader = '<div class="needs-pinning-header">📍 Needs Pinning</div>';
+      if (!isNeedsPinning && prevIsNeedsPinning) sectionHeader = '<div class="on-map-header">On Map</div>';
+    }
     const d = formatDueDateBadge(s.dueDate);
     const dueBadge = d ? '<span class="due-badge due-badge-' + d.cls + '">' + d.label + '</span>' : '';
     const orderBadge = s.order != null ? '<span class="order-badge">#' + s.order + '</span>' : '';
@@ -2008,10 +2032,12 @@ function renderStreetList() {
       : 'No dimensions';
     const treatment = (s.rating && s.rating !== 'pending') ? getTreatment(s.rating, activeProject.type) : null;
     const treatmentHtml = treatment ? '<div class="street-card-treatment" style="color:' + treatment.color + '">' + treatment.label + '</div>' : '';
-    return `
-    <div class="street-card${activeClass}${warningClass} street-card-${s.rating}${doneClass}" onclick="selectStreet('${s.id}')">
+    const pinBadge = isNeedsPinning ? '<span style="color:#f59e0b;font-size:10px;font-weight:700;margin-right:4px">📍</span>' : '';
+    const needsPinClass = isNeedsPinning ? ' street-card-needs-pin' : '';
+    return sectionHeader + `
+    <div class="street-card${activeClass}${warningClass}${needsPinClass} street-card-${s.rating}${doneClass}" onclick="selectStreet('${s.id}')">
       <button class="street-card-delete" onclick="event.stopPropagation(); deleteStreet('${s.id}')" title="Delete">&times;</button>
-      <div class="street-card-name" title="${escHtml(s.name)}">${orderBadge}${doneBadge}${escHtml(s.name)}</div>
+      <div class="street-card-name" title="${escHtml(s.name)}">${orderBadge}${doneBadge}${pinBadge}${escHtml(s.name)}</div>
       ${dueBadgeHtml}${cityHtml}${boundaryHtml}${weedHtml}${ravelingHtml}${rrHtml}
       <div class="street-card-meta">
         <span class="street-card-sqft">${sqftText}</span>

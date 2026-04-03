@@ -44,7 +44,7 @@ A pavement assessment tool built for crack seal and slurry seal contractors (Cal
 - **Branch:** `master` — GitHub Pages auto-deploys on push
 - **Deploy command:** `/git-deploy` or `git add . && git commit -m "vXXX: ..." && git push`
 - **Version convention:** bump `?v=XXX` on `<link rel="stylesheet">` and `<script src="...">` in both `index.html` and `mobile.html`
-- **Current version:** v175 (desktop index.html), mobile.js v12
+- **Current version:** v226 (desktop app.js v194, style.css v182), mobile.js v48
 
 ---
 
@@ -144,7 +144,12 @@ Both desktop and mobile share the same localStorage keys — data is identical a
   rrPhotos: [...],           // R&R photos
   scanPhotos: [...],         // AI-analyzed Street View photos
   scannedAt: "ISO string",
-  createdAt: "ISO string"
+  createdAt: "ISO string",
+  completed: bool,           // Mark Done system — grayed out + sorted to bottom
+  dueDate: "YYYY-MM-DD" | null,
+  order: number | null,      // route stop number (can be X.5 for half stops)
+  orderClickPt: {lat, lng} | null,  // where user clicked to assign order (shown on map)
+  orderNote: "",             // why this street is next — AI training data
 }
 ```
 
@@ -217,12 +222,23 @@ Google Maps-style layout:
 - Street list with search
 - Add street by address (auto-geocodes, detects road type + width)
 - Stats bar: total streets, sq ft, sq yards, avg rating
+- **Import Street List** — paste tab-separated table (Street|Begin|End), geocodes both intersections, draws polyline, optional batch AI scan. ~70-75% geocoding accuracy for cross-street segments.
 
 ### Street Drawing (Pin Mode)
 - Pin.Start → click map → Pin.End → click map → name prompt
 - Green crosshair cursor on start, red on end
 - Right-click cancels at any time
 - Street name suggested from midpoint geocode
+
+### Route Ordering (Manual)
+- **▶ Set Route Order** button in project bar — activates tap-to-order mode
+- Left-click street on map → assigns stop number at click point (yellow badge)
+- Right-click street on map → assigns half stop (e.g. 2.5) — purple badge (for streets worked in two passes with a connecting street in between)
+- After each click, note prompt expands in bar — type reason ("connects to stop 2", "do before traffic") or skip. Notes are AI training data for future route learning.
+- Counter stays at current number after half stops so sequence is maintained
+- **✓ Mark Done** in detail panel — grays out street text, sorts to bottom of list, dims polyline on map
+- Stop badges show at exact click point (= where worker starts that street)
+- Arterials intentionally left unordered — too many factors AI can't see (permits, traffic, lane closures)
 
 ### AI Scanning
 - Samples Street View photos every N ft along path (up to maxPhotos)
@@ -236,7 +252,7 @@ Google Maps-style layout:
 - Override in detail panel or lightbox
 
 ### Detail Panel (3 tabs)
-- **Overview** — alerts, stat grid (sqft/sy/length/width), treatment, rating selector, rescan/delete
+- **Overview** — alerts, stat grid (sqft/sy/length/width), treatment, rating selector, rescan/delete, mark done
 - **Photos** — SV thumbnail, on-site photos, R&R photos, scan photo grid
 - **Analysis** — AI analysis text (level line stripped — shown in header), admin notes
 
@@ -249,6 +265,7 @@ Google Maps-style layout:
 - Dark theme, polylines colored by rating
 - Pulsing glow on selected street (slow, ~2s cycle), main line semi-transparent
 - Photo markers, search by address
+- Order number badges on polylines — yellow (full stop) or purple (half stop)
 
 ### Report
 - AI-generated project summary (all streets, ratings, sqft, treatment recommendations)
@@ -269,6 +286,10 @@ All desktop features plus mobile-specific:
 - **Pull-to-refresh** — double pull on sheet handle only (not map)
 - **Loading splash** — shows immediately, hides when tiles load or 8s max
 - **PWA installable** — manifest + service worker
+- **▶ Set Route Order** in project sheet — gold order bar appears, tap streets to assign stop numbers
+- **½ toggle button** in order bar — tap to switch to half-stop mode (purple badge), auto-resets after each tap
+- Note prompt sheet slides up after each tap — type reason or skip
+- **✓ Mark Done / ↩ Mark Incomplete** in overview tab
 
 ---
 
@@ -517,16 +538,28 @@ Worker holds API keys, routes to OpenAI or Google based on `provider` param.
 | Scan Model moved to Advanced | Reduces clutter in main settings |
 | No chips/presets for AI instructions | Free-text textarea is sufficient |
 | Calibration prompt in lightbox | Detail panel hidden when lightbox is open |
+| AI route optimization removed | Cal has 14 years construction experience — patterns are known, not learned. Manual ordering via click-on-map is better. |
+| Route order is manual only | Office sets stop numbers on desktop, workers follow. Arterials left unordered (too many factors: permits, traffic, lane closures). |
+| Half stops (.5) via right-click desktop / ½ toggle mobile | Some streets worked in two passes with a connecting street in between — 2.5 means "return to finish after stop 3" |
+| Order notes = AI training data | Cal types why each street is next ("connects to stop 2", "do before traffic"). Will feed future "Suggest Route" AI feature after 5-10 projects. |
+| Import geocoding ~70-75% accurate | Mill Valley streets are short and close together. Cross-street intersections sometimes snap to wrong block. "NORTH END"/"SOUTH END" are not real intersections — app uses start point only for those. |
+| Project name on its own row | Was cramped on same row as action buttons — now dropdown is full-width row, buttons below |
 
 ---
 
 ## 19. Current Version
 
-- **Desktop:** v175
-- **Mobile JS:** v12
+- **Desktop:** v226 (app.js v194, style.css v182)
+- **Mobile JS:** v48, mobile.css v4
 - **Service Worker:** v2
 
 Check `index.html` for `?v=XXX` on stylesheet + app.js script.
 Check `mobile.html` for `?v=XXX` on mobile.js script.
 
 > **Note to AI:** When Cal says "deploy" or "push live", use `/git-deploy`. Always bump version numbers in `index.html` AND `mobile.html` before deploying.
+
+## 20. Pending / Next Steps
+
+- **AI scanning regression** — Cal reported streets added on desktop are not being rated (street adds but no rating). AI toggle is ON. Suspected cause: `checkPhotoHasRoad` or proxy issue. Needs debugging next session — ask Cal: does the scan spinner appear? What does the toast say?
+- **GRSI Mill Valley import** — Cal imported the 2026 Preventative Maintenance Project street list (60 streets, Mill Valley CA) using the Import feature. Results pending review — need screenshot to compare against GRSI green map and flag streets that geocoded incorrectly.
+- **Future: AI route suggestion** — after 5-10 projects of manual ordering + notes, build "Suggest Route" button that reads past order data + notes and proposes a starting order.
