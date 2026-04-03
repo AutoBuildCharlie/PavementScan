@@ -45,7 +45,7 @@ A pavement assessment tool built for crack seal and slurry seal contractors (Cal
 - **Branch:** `master` — GitHub Pages auto-deploys on push
 - **Deploy command:** `/git-deploy` or `git add . && git commit -m "vXXX: ..." && git push`
 - **Version convention:** bump `?v=XXX` on `<link rel="stylesheet">` and `<script src="...">` in both `index.html` and `mobile.html`
-- **Current version:** v239 (desktop app.js v209, style.css v184), mobile.js v48
+- **Current version:** v256 (desktop app.js v225, style.css v184), mobile.js v49
 
 ---
 
@@ -527,15 +527,23 @@ Worker holds API keys, routes to OpenAI or Google based on `provider` param.
 | Streets with polylines get no dot | Polyline itself is clickable — dot is redundant and clutters map |
 | PDF import uses GPT-4o not Gemini | Cloudflare Worker proxy only supports text for Gemini — image inputs must use GPT-4o |
 | PDF prompt uses dash format | "street \| begin \| end" format triggered GPT safety filter — "street - begin - end" does not |
+| PDF prompt explicitly states column order | GPT was misreading begin/end columns — prompt now says "column 1 = street, column 2 = begin, column 3 = end, read left to right" |
 | beginAt/endAt stored on street | Cal needs to verify which segment of a street was imported (e.g. Elm Ave has 3 different segments in Mill Valley) |
 | Project name on its own row | Was cramped on same row as action buttons |
+| Scan photo base64 never stored in localStorage | Base64 scan photos fill 5MB limit fast — only URL saved, image re-fetches from proxy on demand. In-session cache via `_photoCache` |
+| Gold dots are clickable (gmpClickable: true + el click listener) | AdvancedMarkerElement requires both to be clickable |
+| Pin mode — multi-point with Curve toggle | Normal mode: click start → click end → saves. Curve ON: click start → click points → toggle Curve OFF → click end → saves |
+| Pinning imported street updates it instead of creating new | When a needs-pinning street is selected and you pin, it updates that street's path — dot disappears, polyline appears |
+| Scan auto-retries once on failure | If first scan fails, retries automatically. If both fail, street stays PENDING and shows toast |
+| Street search bar at top center of map | Type to filter, Enter selects first match, Escape clears |
+| Miles shown as own stat card | Added to detail panel and header stats bar |
 
 ---
 
 ## 19. Current Version
 
-- **Desktop:** v239 (app.js v209, style.css v184)
-- **Mobile JS:** v48, mobile.css v4
+- **Desktop:** v256 (app.js v225, style.css v184)
+- **Mobile JS:** v49, mobile.css v4
 - **Service Worker:** v2
 
 Check `index.html` for `?v=XXX` on stylesheet + app.js script.
@@ -547,8 +555,9 @@ Check `mobile.html` for `?v=XXX` on mobile.js script.
 
 ## 20. Pending / Next Steps
 
-- **PDF import testing** — GPT-4o with dash format prompt was working (returned 46 streets previously). Latest version (v208) uses same image approach with rephrased prompt. Needs Cal to test drop again after v238 is live.
-- **GRSI Mill Valley project** — Cal is building the Mill Valley 2026 Preventative Maintenance Project. PDF has ~52 rows including duplicate street names (Elm Ave x3, Miller Ave N x4, Miller Ave S x4). Import should capture all rows with begin/end.
-- **Pin workflow** — After import, Cal clicks each gold dot → opens detail → uses Pin.Start to draw exact line → dot disappears → colored polyline appears.
+- **GRSI Mill Valley project** — Cal is actively pinning streets for the Mill Valley 2026 Preventative Maintenance Project (~39 streets imported, 7 pinned as of this session). PDF had ~52 rows including duplicates.
+- **Pin workflow** — Click gold dot → select street → Pin.Start → click start → click end (or use Curve toggle for curved streets) → name prompt → dot disappears → polyline appears → AI scans automatically.
+- **Lightbox scan photos** — photos re-fetch from proxy on demand after refresh (no longer stored in localStorage). Works correctly now.
+- **Storage fix** — localStorage bloat from base64 scan photos was causing pins to disappear on refresh. Fixed in v255/v256 — both desktop and mobile now strip dataUrls before saving and auto-clean old bloat on load.
 - **Future: AI route suggestion** — after 5-10 projects of manual ordering + notes, build "Suggest Route" button that reads `order`, `orderNote`, `orderClickPt` data.
-- **AI scanning regression** — streets added on desktop not being rated. Not yet fully resolved — monitor after pinning workflow is established.
+- **Future: backend/cloud storage** — currently localStorage only, no cross-device sync. Export/Import is the workaround. Backend would enable desktop↔mobile sync.
