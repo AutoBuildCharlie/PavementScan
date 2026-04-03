@@ -117,6 +117,17 @@ function loadProjects() {
     });
   });
 
+  // Strip leftover scan photo dataUrls from previous sessions
+  let hadBloat = false;
+  projects.forEach(proj => {
+    (proj.streets || []).forEach(s => {
+      (s.scanPhotos || []).forEach(p => { if (p.dataUrl) { delete p.dataUrl; hadBloat = true; } });
+    });
+  });
+  if (hadBloat) {
+    try { localStorage.setItem('cse_projects', JSON.stringify(projects)); } catch(e) {}
+  }
+
   if (!projects.length) {
     projects = [createProject('My First Project', 'crack-seal')];
   }
@@ -125,8 +136,19 @@ function loadProjects() {
 }
 
 function saveProjects() {
-  localStorage.setItem('cse_projects', JSON.stringify(projects));
-  localStorage.setItem('cse_active_project', activeProject.id);
+  try {
+    const toSave = projects.map(proj => ({
+      ...proj,
+      streets: (proj.streets || []).map(s => ({
+        ...s,
+        scanPhotos: (s.scanPhotos || []).map(p => { const {dataUrl, ...rest} = p; return rest; })
+      }))
+    }));
+    localStorage.setItem('cse_projects', JSON.stringify(toSave));
+    localStorage.setItem('cse_active_project', activeProject.id);
+  } catch (e) {
+    console.error('localStorage save failed:', e);
+  }
 }
 
 function createProject(name, type = 'crack-seal') {
@@ -943,16 +965,14 @@ async function analyzeStreet(street) {
       return;
     }
 
-    // Store scan photos — embed base64 so they work offline and on mobile
+    // Store scan photos — keep in memory cache only, not in localStorage
     street.scanPhotos = photoData.map((p, i) => ({
       url: getSVUrl(p.lat, p.lng, p.heading, 400, 250),
       hdUrl: getSVUrl(p.lat, p.lng, p.heading, 800, 500),
-      dataUrl: `data:image/jpeg;base64,${p.base64}`,
       label: `Photo ${i + 1}`,
       lat: p.lat, lng: p.lng
     }));
-    // Set thumbnail from embedded base64
-    street.svImage = street.scanPhotos[0]?.dataUrl || street.scanPhotos[0]?.url || '';
+    street.svImage = street.scanPhotos[0]?.url || '';
 
     updateScanning('Asking AI to analyze pavement…');
 
