@@ -45,7 +45,7 @@ A pavement assessment tool built for crack seal and slurry seal contractors (Cal
 - **Branch:** `master` — GitHub Pages auto-deploys on push
 - **Deploy command:** `/git-deploy` or `git add . && git commit -m "vXXX: ..." && git push`
 - **Version convention:** bump `?v=XXX` on `<link rel="stylesheet">` and `<script src="...">` in both `index.html` and `mobile.html`
-- **Current version:** v238 (desktop app.js v208, style.css v184), mobile.js v48
+- **Current version:** v239 (desktop app.js v209, style.css v184), mobile.js v48
 
 ---
 
@@ -534,7 +534,7 @@ Worker holds API keys, routes to OpenAI or Google based on `provider` param.
 
 ## 19. Current Version
 
-- **Desktop:** v238 (app.js v208, style.css v184)
+- **Desktop:** v239 (app.js v209, style.css v184)
 - **Mobile JS:** v48, mobile.css v4
 - **Service Worker:** v2
 

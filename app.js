@@ -1657,7 +1657,7 @@ ${detectRR && isSlurry ? '- R&R areas must be patched before slurry seal can be 
     street.photosScanned = validPairs.length;
     street.scanPhotos = validPairs.map(p => {
       _photoCache.set(p.hdUrl, p.base64);
-      return { url: p.hdUrl, hdUrl: p.hdUrl, dataUrl: `data:image/jpeg;base64,${p.base64}`, label: p.label, lat: p.lat, lng: p.lng, svDate: p.svDate || null };
+      return { url: p.hdUrl, hdUrl: p.hdUrl, dataUrl: p.base64, label: p.label, lat: p.lat, lng: p.lng, svDate: p.svDate || null };
     });
 
     if (!res.ok) throw new Error(`AI proxy ${res.status}`);
@@ -3017,14 +3017,15 @@ async function _renderLightbox() {
   if (retakeBtn) retakeBtn.classList.toggle('hidden', !(_lbPhotoArray === 'scanPhotos' && p.lat && p.lng));
 
   // On-site photos have dataUrl stored directly — no proxy needed
-  if (p.dataUrl) {
+  // Guard against old double-prefixed scan photo dataUrls (bug in earlier versions)
+  const dataUrlValid = p.dataUrl && !p.dataUrl.startsWith('data:image/jpeg;base64,data:');
+  if (dataUrlValid) {
     img.src = p.dataUrl;
     img.alt = '';
     return;
   }
 
-  // Scan photos: use embedded base64 first, then memory cache, then fetch on-demand
-  if (p.dataUrl) { img.src = p.dataUrl; return; }
+  // Scan photos: check memory cache, then fetch on-demand via proxy
   const cacheKey = p.hdUrl || p.url;
   const cached = cacheKey ? _photoCache.get(cacheKey) : null;
   if (cached) {
