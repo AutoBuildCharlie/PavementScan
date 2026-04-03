@@ -817,7 +817,7 @@ function renderProjectSelector() {
   container.innerHTML = `
     <div class="project-row" style="padding-bottom:4px">
       <select id="project-dropdown" onchange="switchProject(this.value)" style="flex:1;font-size:13px;font-weight:600;color:var(--text)">
-        ${projects.map(p => `<option value="${p.id}" ${p.id === activeProject.id ? 'selected' : ''}>${p.name} (${p.streets.length})</option>`).join('')}
+        ${projects.map(p => { const cnt = p.streets.reduce((s, st) => s + (st.name ? st.name.split(',').filter(n => n.trim()).length : 1), 0); return `<option value="${p.id}" ${p.id === activeProject.id ? 'selected' : ''}>${p.name} (${cnt})</option>`; }).join('')}
       </select>
     </div>
     <div class="project-row" style="padding-top:0">
@@ -3144,9 +3144,10 @@ function updateStats() {
     return;
   }
 
-  // Project-wide stats
+  // Project-wide stats — count individual street names (entries with commas count as multiple)
   document.getElementById('stat-streets').querySelector('.stat-label').textContent = 'Streets';
-  document.getElementById('total-streets').textContent = streets.length;
+  const totalStreetCount = streets.reduce((sum, s) => sum + (s.name ? s.name.split(',').filter(n => n.trim()).length : 1), 0);
+  document.getElementById('total-streets').textContent = totalStreetCount;
   document.getElementById('stat-sqft').querySelector('.stat-label').textContent = 'Total Sq Ft';
   const totalSqft = streets.reduce((sum, s) => sum + (s.sqft || 0), 0);
   document.getElementById('total-sqft').textContent = formatNumber(totalSqft);
