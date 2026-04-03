@@ -3937,7 +3937,10 @@ function setMapCursor(cursorClass) {
 }
 
 function startFreeHighlight() {
-  if (drawingMode) { stopDrawingMode(); return; }
+  if (drawingMode) {
+    if (_multiPath.length >= 2) { finishMultiPointDraw(); } else { stopDrawingMode(); }
+    return;
+  }
   if (streetViewMode) closeStreetViewPanel(); // turn off street view
   drawingMode = true;
   highlightMode = 'drawing';
