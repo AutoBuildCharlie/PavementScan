@@ -167,6 +167,18 @@ function loadProjects() {
     projects = JSON.parse(localStorage.getItem(PROJECTS_KEY)) || [];
   } catch { projects = []; }
 
+  // Strip any leftover scan photo dataUrls from previous sessions and re-save
+  // This frees up localStorage space on first load after the v255 update
+  let hadBloat = false;
+  projects.forEach(proj => {
+    (proj.streets || []).forEach(s => {
+      (s.scanPhotos || []).forEach(p => { if (p.dataUrl) { delete p.dataUrl; hadBloat = true; } });
+    });
+  });
+  if (hadBloat) {
+    try { localStorage.setItem(PROJECTS_KEY, JSON.stringify(projects)); } catch(e) {}
+  }
+
   // Get active project or create default
   const activeId = localStorage.getItem(ACTIVE_KEY);
   activeProject = projects.find(p => p.id === activeId);
@@ -183,25 +195,21 @@ function loadProjects() {
 }
 
 function saveProjects() {
+  // Always strip scan photo dataUrls before saving — they are large base64 blobs
+  // that fill localStorage. They stay in _photoCache for the current session and
+  // are re-fetched via proxy when opened in a future session.
   try {
-    localStorage.setItem(PROJECTS_KEY, JSON.stringify(projects));
+    const toSave = projects.map(proj => ({
+      ...proj,
+      streets: (proj.streets || []).map(s => ({
+        ...s,
+        scanPhotos: (s.scanPhotos || []).map(p => { const {dataUrl, ...rest} = p; return rest; })
+      }))
+    }));
+    localStorage.setItem(PROJECTS_KEY, JSON.stringify(toSave));
   } catch (e) {
-    // Storage full — retry without embedded base64 scan photo data
-    console.warn('localStorage full, retrying without scan photo dataUrls:', e);
-    try {
-      const stripped = projects.map(proj => ({
-        ...proj,
-        streets: (proj.streets || []).map(s => ({
-          ...s,
-          scanPhotos: (s.scanPhotos || []).map(p => ({ ...p, dataUrl: null }))
-        }))
-      }));
-      localStorage.setItem(PROJECTS_KEY, JSON.stringify(stripped));
-      showToast('Storage nearly full — scan photos will reload on demand', 4000);
-    } catch (e2) {
-      showToast('Storage full — delete old projects to free space', 5000);
-      console.error('localStorage save failed even after stripping photos:', e2);
-    }
+    showToast('Storage full — delete old projects to free space', 5000);
+    console.error('localStorage save failed:', e);
   }
 }
 
