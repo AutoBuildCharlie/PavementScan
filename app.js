@@ -3001,7 +3001,8 @@ async function rescanStreet(id) {
 function deleteStreet(id) {
   // Toggle off if already showing
   const existing = document.getElementById('delete-confirm-' + id);
-  if (existing) { existing.remove(); return; }
+  const existingDetail = document.getElementById('delete-confirm-detail-' + id);
+  if (existing || existingDetail) { existing?.remove(); existingDetail?.remove(); return; }
 
   // Remove any other open confirms
   document.querySelectorAll('.delete-confirm').forEach(el => el.remove());
@@ -3025,10 +3026,22 @@ function deleteStreet(id) {
 
   if (targetCard) {
     targetCard.after(confirmEl);
-  } else {
-    // Insert in detail panel
-    const actions = document.querySelector('.detail-actions');
-    if (actions) actions.after(confirmEl);
+  }
+
+  // Always also show confirm in the right detail panel
+  const actions = document.querySelector('.detail-actions');
+  if (actions) {
+    const confirmEl2 = document.createElement('div');
+    confirmEl2.id = 'delete-confirm-detail-' + id;
+    confirmEl2.className = 'delete-confirm';
+    confirmEl2.innerHTML = `
+      <span>Delete this street?</span>
+      <div class="delete-confirm-btns">
+        <button class="dc-yes" onclick="event.stopPropagation(); confirmDelete('${id}')">Yes, delete</button>
+        <button class="dc-no" onclick="event.stopPropagation(); document.getElementById('delete-confirm-${id}')?.remove(); this.parentElement.parentElement.remove()">Cancel</button>
+      </div>
+    `;
+    actions.after(confirmEl2);
   }
 }
 
