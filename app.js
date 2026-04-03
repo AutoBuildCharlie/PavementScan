@@ -279,7 +279,7 @@ async function handleImportDrop(e) {
       messages = [{
         role: 'user',
         content: [
-          { type: 'text', text: 'This document lists streets for pavement work. Extract every street name. Return only street names, one per line, nothing else.' },
+          { type: 'text', text: 'This is a pavement assessment document. It contains a table listing streets. Extract every street name from the table. Return only the street names, one per line, no numbers, no other text.' },
           ...images.map(img => ({ type: 'image_url', image_url: { url: `data:image/jpeg;base64,${img}` } }))
         ]
       }];
