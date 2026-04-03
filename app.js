@@ -290,13 +290,18 @@ function closeImportModal(e) {
   document.getElementById('import-overlay').classList.add('hidden');
 }
 
-// ─── PDF DROP IMPORT ───────────────────────────────────────
+// ─── PDF / IMAGE DROP IMPORT ───────────────────────────────
 async function handleImportDrop(e) {
   e.preventDefault();
   document.getElementById('import-drop-zone').classList.remove('drag-over');
 
-  const file = [...e.dataTransfer.files].find(f => f.type === 'application/pdf' || f.name.endsWith('.pdf'));
-  if (!file) { showToast('Drop a PDF file'); return; }
+  const files = [...e.dataTransfer.files];
+  const imageFile = files.find(f => f.type.startsWith('image/'));
+  const pdfFile   = files.find(f => f.type === 'application/pdf' || f.name.endsWith('.pdf'));
+
+  if (imageFile) { await handleImportImage(imageFile); return; }
+  const file = pdfFile;
+  if (!file) { showToast('Drop a PDF or map screenshot'); return; }
 
   const dropContent = document.getElementById('import-drop-content');
   const dropLoading = document.getElementById('import-drop-loading');
@@ -371,6 +376,62 @@ async function handleImportDrop(e) {
     dropLoading.classList.add('hidden');
     dropContent.classList.remove('hidden');
     showToast('Could not read PDF — try pasting manually');
+  }
+}
+
+// ─── MAP IMAGE DROP IMPORT ─────────────────────────────────
+async function handleImportImage(file) {
+  const dropContent = document.getElementById('import-drop-content');
+  const dropLoading = document.getElementById('import-drop-loading');
+  const dropStatus  = document.getElementById('import-drop-status');
+
+  dropContent.classList.add('hidden');
+  dropLoading.classList.remove('hidden');
+  dropStatus.textContent = 'Reading map image…';
+
+  try {
+    const base64 = await new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result.split(',')[1]);
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    });
+
+    dropStatus.textContent = 'AI reading street names…';
+
+    const messages = [{
+      role: 'user',
+      content: [
+        { type: 'text', text: 'This is a map screenshot. List every street name visible as a label on the map. Output one street name per line. Include the full name exactly as printed (e.g. "Elm Ave", "Miller Ave S"). No duplicates, no numbering, no extra text. Copy abbreviations exactly — do not expand them.' },
+        { type: 'image_url', image_url: { url: `data:${file.type};base64,${base64}` } }
+      ]
+    }];
+
+    const res = await fetch('https://cse-worker.aestheticcal22.workers.dev', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ provider: 'openai', model: 'gpt-4o', messages })
+    });
+    const data = await res.json();
+    const extracted = (data.choices?.[0]?.message?.content || '').trim();
+
+    if (!extracted) throw new Error('AI could not read the map');
+
+    const count = extracted.split('\n').filter(Boolean).length;
+    document.getElementById('import-list').value = extracted;
+    document.getElementById('import-review-notice').classList.remove('hidden');
+    document.getElementById('import-list-label').textContent = `Review (${count} streets found) — edit if needed`;
+    dropStatus.textContent = `${count} streets found — review the list below`;
+    setTimeout(() => {
+      dropLoading.classList.add('hidden');
+      dropContent.classList.remove('hidden');
+    }, 1500);
+
+  } catch (err) {
+    console.error('Map image import error:', err);
+    dropLoading.classList.add('hidden');
+    dropContent.classList.remove('hidden');
+    showToast('Could not read image — try pasting manually');
   }
 }
 

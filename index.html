@@ -256,9 +256,9 @@
         ondragleave="this.classList.remove('drag-over')"
         ondrop="handleImportDrop(event)">
         <div id="import-drop-content">
-          <span style="font-size:28px">📄</span>
-          <div style="font-weight:600;margin:6px 0 2px">Drop PDF here</div>
-          <div style="font-size:11px;color:var(--text-muted)">AI will read it and extract the street names</div>
+          <span style="font-size:28px">📄🗺️</span>
+          <div style="font-weight:600;margin:6px 0 2px">Drop PDF or map screenshot</div>
+          <div style="font-size:11px;color:var(--text-muted)">AI reads the table or image and extracts street names</div>
         </div>
         <div id="import-drop-loading" class="hidden" style="text-align:center;padding:8px 0">
           <div class="scan-spinner" style="width:24px;height:24px;border-width:3px;margin:0 auto 8px"></div>
@@ -335,7 +335,7 @@
   </div>
 
   <!-- ─── SCRIPTS ─────────────────────────────────────────── -->
-  <script src="app.js?v=232"></script>
+  <script src="app.js?v=233"></script>
   <script async defer
     src="https://maps.googleapis.com/maps/api/js?key=AIzaSyALUzyaUCMmtVah_gcnoe-g2VGeezsPkZ8&callback=initMap&loading=async&libraries=marker">
   </script>
