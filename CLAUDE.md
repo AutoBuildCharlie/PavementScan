@@ -562,9 +562,10 @@ Worker holds API keys, routes to OpenAI or Google based on `provider` param.
 
 ## 19. Current Version
 
-- **Desktop:** v277 (app.js v245, style.css v184)
+- **Desktop:** v280 (app.js v245, style.css v185)
 - **Mobile JS:** v49, mobile.css v4
 - **Service Worker:** v2
+- **Schedule Map:** v280 (schedule-map.html)
 
 Check `index.html` for `?v=XXX` on stylesheet + app.js script.
 Check `mobile.html` for `?v=XXX` on mobile.js script.
@@ -575,23 +576,43 @@ Check `mobile.html` for `?v=XXX` on mobile.js script.
 
 ## 20. Pending / Next Steps
 
-- **GRSI Mill Valley project** — Cal finished marking streets for the Mill Valley 2026 Preventative Maintenance Project. All streets pinned.
-- **Pin workflow** — Click gold dot → select street → Pin.Start → click start → click curve points (Curve ON) → hit green Finish Line button → name prompt → dot disappears → polyline appears → AI scans automatically.
-- **Finish Line button** — appears in highlight bar after first map click, stays visible until street is saved. Easiest way to end a curved street without toggling Curve OFF.
-- **Map image import** — drop a screenshot of a pavement plan map into import modal → AI reads street name labels → geocodes them → places gold dots. Already-pinned streets are skipped.
-- **Geocoder + intersection** — import geocodes begin and end intersections separately. Green dot = start, red dot = end. Pin.Start auto-fills both endpoints so Cal just hits Finish Line.
-- **Built (v271): Retry chain** — geocoder now tries: begin intersection → end intersection → street name only → skip. 300ms delay between each call. Streets are skipped only after all 3 options fail. If only one intersection resolves, that point is used as the gold dot instead of falling back to a redundant street name geocode.
-- **Built (v272): Skipped streets stay visible** — if any streets are skipped during import, modal stays open with amber warning listing each skipped name. User closes manually with OK button. Auto-closes only if zero skipped.
-- **Built (v273): Curve toggle compact** — small pill with stacked "Curve / ON-OFF" label, flex:0 so it doesn't expand to match Pin.Start width.
-- **Built (v274): Onsite Photo button removed from desktop** — not needed in office context, SV snap handles photo capture.
-- **Built (v275): Merged search bars** — "Find street…" map overlay removed. Top search bar now does both: type to filter project streets (dropdown), Enter to geocode address + drop amber pin.
-- **Built (v276): Overall rating uses mode of photo ratings** — most common photo rating wins instead of AI's single verdict. 5× LVL1 + 1× LVL2 = LVL1. Falls back to AI verdict if no photo ratings returned.
-- **Built (v277): Street count splits comma-names** — "Plymouth Ave, Valley Cir, Surrey Ave" counts as 3 in the stat bar and project dropdown. Single-name streets count as 1.
-- **Next: "Recalculate All Ratings" button** — apply new mode logic to already-scanned streets without rescanning. One button in project bar.
-- **Next: Remove "Take Photo" button from right panel detail view on desktop** — same issue as Onsite Photo button, useless in office context.
+### PavementScan (Desktop/Mobile)
+- **Next: "Recalculate All Ratings" button** — apply mode logic to already-scanned streets without rescanning. One button in project bar.
+- **Next: Remove "Take Photo" button from right panel detail view on desktop** — useless in office context.
 - **Next: Mobile search bar merge** — mobile still has separate "Find street" overlay, needs same merge as desktop v275.
 - **Next: CSV export** — dump all streets, ratings, sq ft, lengths into a spreadsheet for city/client handoff.
 - **Next: Rescan all PENDING** — button to kick off scans on every pinned street with no rating yet.
 - **Next: Calibration rules viewer** — show active AI rules, allow deleting bad ones.
 - **Future: AI route suggestion** — after 5-10 projects of manual ordering + notes, build "Suggest Route" button that reads `order`, `orderNote`, `orderClickPt` data.
-- **Future: backend/cloud storage** — currently localStorage only, no cross-device sync. Export/Import is the workaround. Backend would enable desktop↔mobile sync.
+- **Future: backend/cloud storage** — currently localStorage only, no cross-device sync. Export/Import is the workaround.
+
+### Schedule Map Tool (`schedule-map.html`) — GRSI Newark 2025
+- **What it is:** Standalone page for GRSI's Newark 2025 Citywide Slurry Seal Project. Upload color-coded schedule images → AI extracts street names + dates → place colored labels on clean master map → export PDF.
+- **Accessible from:** PavementScan header → "📋 Schedule Map" button
+- **Live URL:** https://autobuildcharlie.github.io/PavementScan/schedule-map.html
+- **GRSI contact:** Terri — waiting on full 60-page plan PDF (71MB, too big for email — Terri finding a way to share via Drive/WeTransfer)
+- **Project:** City of Newark, Alameda County — 2025 Citywide Slurry Seal Project CIPA10005.FY2025
+- **What AI extracted:** 61 streets from the color-coded schedule PDF (MK - MASTER MAP file). Grouped by day correctly (4/13 Mon through 5/5 Tue).
+- **Schedule dates:** Weeks of 4/13, 4/21, 4/27, and 5/4
+- **Background map issue:** MK-MASTER MAP PDF only has the cover sheet (Location Map is small/embedded). Full plan sheets (pages 3–59) have individual zoomed-in maps with street names — waiting on Terri to share those.
+- **Workaround for now:** Screenshot/crop just the Location Map from the cover sheet and upload that as background image instead of the full PDF.
+
+### Schedule Map — How It Works
+1. **Step 1:** Upload color-coded schedule images/PDF → AI reads each page → extracts `{name, date, day, color, split}` → deduped list appears in right panel
+2. **Step 2:** Set PDF page number (default 1) → upload clean map image or PDF → renders as background
+3. **Step 3:** Click street name in right panel → click on map → colored label drops at that spot. Drag to reposition. Double-click to remove.
+4. **Export PDF:** `window.print()` → save as PDF. Schedule list prints alongside map.
+
+### Schedule Map — Known Decisions
+| Decision | Reason |
+|---|---|
+| PDF page selector on Step 2 | Cover sheet loads as page 1 by default — user needs to specify which page has the actual map |
+| Labels are manually placed | Auto-geocoding wouldn't align to the GRSI map image coordinates |
+| Drag-and-drop on both zones | Easier than click-to-browse for large PDF files |
+| Split streets show ★ badge | Half-street work days noted without duplicate entries |
+| All pages sent to AI individually | Multi-page PDFs — each page is a separate schedule week |
+
+### Built This Session
+- **v278:** Created `schedule-map.html` — full Schedule Map tool. Added "📋 Schedule Map" button to PavementScan header. Added `.btn-schedule-map` style to style.css.
+- **v279:** Added PDF drag-and-drop support, PDF.js rendering for both Step 1 (all pages → AI) and Step 2 (selected page → background).
+- **v280:** Added PDF page number selector to Step 2 so user can load any page as background (not just page 1).
