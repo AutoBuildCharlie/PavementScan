@@ -1477,27 +1477,40 @@ function updateStatus() {
   const placed   = streets.filter(s => s.placed).length;
   const missing  = streets.filter(s => s.geocodeFailed).length;
   const pills    = streets.filter(s => s.placed && !s.paths).length;
+  const lost     = streets.filter(s => !s.placed && !s.geocodeFailed && !s.lat).length;
   let text = `${streets.length} street${streets.length !== 1 ? 's' : ''} · ${placed} placed`;
   if (missing) text += ` · ⚠ ${missing} not found`;
   document.getElementById('status-bar').textContent = text;
-  document.getElementById('upgrade-bar').style.display = pills > 0 ? 'block' : 'none';
+  const upgradeBar = document.getElementById('upgrade-bar');
+  if (pills > 0 || lost > 0) {
+    upgradeBar.style.display = 'block';
+    upgradeBar.querySelector('button').textContent = lost > 0
+      ? `↺ Restore ${lost} lost streets + upgrade pills`
+      : `⬆ Upgrade ${pills} pill labels → road lines`;
+  } else {
+    upgradeBar.style.display = 'none';
+  }
 }
 
 async function upgradePillsToPolylines() {
-  const pills = streets.filter(s => s.placed && !s.paths);
-  if (!pills.length) { showToast('No pill labels to upgrade'); return; }
-  showToast(`Upgrading ${pills.length} labels to road lines…`);
+  // Include pills AND any streets that got lost (placed=false, geocodeFailed=false, no lat)
+  const targets = streets.filter(s => (s.placed && !s.paths) || (!s.placed && !s.geocodeFailed && !s.lat));
+  if (!targets.length) { showToast('No pill labels to upgrade'); return; }
+  showToast(`Upgrading ${targets.length} labels to road lines…`);
   const bar   = document.getElementById('geocode-bar');
   const msgEl = document.getElementById('geocode-msg');
   bar.classList.add('show');
   let upgraded = 0;
-  for (let i = 0; i < pills.length; i++) {
-    const st = pills[i];
-    msgEl.textContent = `Upgrading ${i + 1} of ${pills.length}: ${st.name}`;
+  for (let i = 0; i < targets.length; i++) {
+    const st = targets[i];
+    msgEl.textContent = `Upgrading ${i + 1} of ${targets.length}: ${st.name}`;
     try {
-      // Remove existing pill marker so Overpass can replace it
+      // Save original position in case we need to restore
+      const origLat = st.lat, origLng = st.lng;
+      // Remove existing pill marker
       if (markers[st.id]) { markers[st.id].setMap(null); delete markers[st.id]; }
       st.placed = false; st.lat = null; st.lng = null;
+
       const drawn = await drawStreetFromOverpass(st);
       if (drawn) {
         upgraded++;
@@ -1507,19 +1520,23 @@ async function upgradePillsToPolylines() {
         const hit = cache ? fuzzyMatchFromCache(st.name, cache) : null;
         if (hit && drawFromCachedElements(st, hit)) {
           upgraded++;
+        } else if (origLat && origLng) {
+          // Restore original pill — don't lose it
+          placeMarker(st, origLat, origLng);
         } else {
-          // Restore pill via geocoder
+          // Try geocoder as last resort
           const result = await geocodeStreet(st.name);
           if (result) { placeMarker(st, result.lat, result.lng); }
+          else { st.geocodeFailed = true; }
         }
       }
     } catch(e) { /* keep going */ }
-    if (i < pills.length - 1) await delay(800);
+    if (i < targets.length - 1) await delay(800);
   }
   bar.classList.remove('show');
   renderAll();
   saveState();
-  showToast(`Upgraded ${upgraded} of ${pills.length} labels to road lines`);
+  showToast(`Upgraded ${upgraded} of ${targets.length} labels to road lines`);
 }
 
 // ─── Clear All ───────────────────────────────────────────
