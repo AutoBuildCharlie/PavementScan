@@ -622,6 +622,34 @@ function isInNewark(lat, lng) {
          lng >= NEWARK_BBOX.minLng && lng <= NEWARK_BBOX.maxLng;
 }
 
+// Attach click (info popup) + dblclick (remove) to a set of polylines for a street
+function attachPolylineListeners(polylines, street) {
+  polylines.forEach(poly => {
+    poly.addListener('click', (e) => {
+      if (!infoWindow) infoWindow = new google.maps.InfoWindow();
+      const d = days.find(d => d.key === `${street.date}|${street.color}`);
+      const dayLabel = d ? d.label : `${street.date} ${street.day}`;
+      infoWindow.setContent(`
+        <div style="font-family:sans-serif;min-width:140px">
+          <div style="font-weight:700;font-size:14px;margin-bottom:4px">${escHtml(street.name)}</div>
+          <div style="font-size:12px;color:#555">${escHtml(dayLabel)}</div>
+          ${street.split ? '<div style="font-size:11px;color:#888;margin-top:2px">★ Split day</div>' : ''}
+          <div style="font-size:10px;color:#aaa;margin-top:6px">Double-click to remove</div>
+        </div>
+      `);
+      infoWindow.setPosition(e.latLng);
+      infoWindow.open(map);
+    });
+    poly.addListener('dblclick', () => {
+      if (infoWindow) infoWindow.close();
+      polylines.forEach(p => p.setMap(null));
+      delete markers[street.id];
+      street.placed = false; street.lat = null; street.lng = null; street.paths = null;
+      renderAll(); saveState();
+    });
+  });
+}
+
 // Normalize a street name for fuzzy comparison
 function normalizeName(name) {
   return expandAbbreviations(name).toLowerCase().replace(/[^a-z0-9\s]/g, '').trim();
@@ -686,14 +714,7 @@ function drawFromCachedElements(street, cachedEntry) {
     map, zIndex: 2, clickable: true,
   }));
 
-  polylines.forEach(poly => {
-    poly.addListener('dblclick', () => {
-      polylines.forEach(p => p.setMap(null));
-      delete markers[street.id];
-      street.placed = false; street.lat = null; street.lng = null; street.paths = null;
-      renderAll(); saveState();
-    });
-  });
+  attachPolylineListeners(polylines, street);
 
   const allPts = paths.flat();
   street.lat   = allPts.reduce((s, p) => s + p.lat, 0) / allPts.length;
@@ -731,6 +752,7 @@ let markers          = {};   // id → { setMap } or ScheduleLabel
 let map              = null;
 let activeWeekFilter = null; // null = All, 1/2/3... = specific week
 let newarkStreetCache = null; // all OSM ways in Newark bbox, keyed by normalized name
+let infoWindow       = null; // shared InfoWindow for polyline clicks
 
 // ─── Map Init ────────────────────────────────────────────
 function initMap() {
@@ -1096,19 +1118,7 @@ async function drawStreetFromOverpass(street) {
     clickable: true,
   }));
 
-  // Double-click any segment to remove
-  polylines.forEach(poly => {
-    poly.addListener('dblclick', () => {
-      polylines.forEach(p => p.setMap(null));
-      delete markers[street.id];
-      street.placed = false;
-      street.lat    = null;
-      street.lng    = null;
-      street.paths  = null;
-      renderAll();
-      saveState();
-    });
-  });
+  attachPolylineListeners(polylines, street);
 
   // Compute center from all points
   const allPts   = paths.flat();
@@ -1371,14 +1381,7 @@ function loadState() {
           zIndex: 2,
           clickable: true,
         }));
-        polylines.forEach(poly => {
-          poly.addListener('dblclick', () => {
-            polylines.forEach(p => p.setMap(null));
-            delete markers[st.id];
-            st.placed = false; st.lat = null; st.lng = null; st.paths = null;
-            renderAll(); saveState();
-          });
-        });
+        attachPolylineListeners(polylines, st);
         markers[st.id] = { setMap: (m) => polylines.forEach(p => p.setMap(m)) };
       } else if (st.lat && st.lng) {
         placeMarker(st, st.lat, st.lng);
