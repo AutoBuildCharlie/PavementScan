@@ -557,6 +557,11 @@
     </div><!-- end panel-scroll -->
 
     <div id="status-bar">0 streets · 0 placed on map</div>
+    <div id="upgrade-bar" style="display:none;padding:6px 14px;border-top:1px solid #374151;">
+      <button onclick="upgradePillsToPolylines()" style="width:100%;padding:6px;background:#1d4ed8;border:none;border-radius:4px;color:#fff;cursor:pointer;font-size:11px;font-weight:600">
+        ⬆ Upgrade pill labels → road lines
+      </button>
+    </div>
   </div>
 
   <!-- Print-only legend (hidden on screen) -->
@@ -1471,9 +1476,50 @@ function rebuildDaySelect() {
 function updateStatus() {
   const placed   = streets.filter(s => s.placed).length;
   const missing  = streets.filter(s => s.geocodeFailed).length;
+  const pills    = streets.filter(s => s.placed && !s.paths).length;
   let text = `${streets.length} street${streets.length !== 1 ? 's' : ''} · ${placed} placed`;
   if (missing) text += ` · ⚠ ${missing} not found`;
   document.getElementById('status-bar').textContent = text;
+  document.getElementById('upgrade-bar').style.display = pills > 0 ? 'block' : 'none';
+}
+
+async function upgradePillsToPolylines() {
+  const pills = streets.filter(s => s.placed && !s.paths);
+  if (!pills.length) { showToast('No pill labels to upgrade'); return; }
+  showToast(`Upgrading ${pills.length} labels to road lines…`);
+  const bar   = document.getElementById('geocode-bar');
+  const msgEl = document.getElementById('geocode-msg');
+  bar.classList.add('show');
+  let upgraded = 0;
+  for (let i = 0; i < pills.length; i++) {
+    const st = pills[i];
+    msgEl.textContent = `Upgrading ${i + 1} of ${pills.length}: ${st.name}`;
+    try {
+      // Remove existing pill marker so Overpass can replace it
+      if (markers[st.id]) { markers[st.id].setMap(null); delete markers[st.id]; }
+      st.placed = false; st.lat = null; st.lng = null;
+      const drawn = await drawStreetFromOverpass(st);
+      if (drawn) {
+        upgraded++;
+      } else {
+        // Try fuzzy cache match
+        const cache = await fetchNewarkStreetCache().catch(() => null);
+        const hit = cache ? fuzzyMatchFromCache(st.name, cache) : null;
+        if (hit && drawFromCachedElements(st, hit)) {
+          upgraded++;
+        } else {
+          // Restore pill via geocoder
+          const result = await geocodeStreet(st.name);
+          if (result) { placeMarker(st, result.lat, result.lng); }
+        }
+      }
+    } catch(e) { /* keep going */ }
+    if (i < pills.length - 1) await delay(400);
+  }
+  bar.classList.remove('show');
+  renderAll();
+  saveState();
+  showToast(`Upgraded ${upgraded} of ${pills.length} labels to road lines`);
 }
 
 // ─── Clear All ───────────────────────────────────────────
