@@ -1400,9 +1400,12 @@ function renderList() {
   // Update not-found banner
   if (notFound.length) {
     banner.classList.add('show');
+    banner.style.cursor = 'pointer';
     banner.innerHTML = `⚠ ${notFound.length} street${notFound.length !== 1 ? 's' : ''} not found on map — click to retry`;
+    banner.onclick = () => geocodeAll(notFound);
   } else {
     banner.classList.remove('show');
+    banner.onclick = null;
   }
 
   // Group by day
