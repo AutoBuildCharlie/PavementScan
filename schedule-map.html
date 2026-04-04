@@ -1401,8 +1401,14 @@ function renderList() {
   if (notFound.length) {
     banner.classList.add('show');
     banner.style.cursor = 'pointer';
-    banner.innerHTML = `⚠ ${notFound.length} street${notFound.length !== 1 ? 's' : ''} not found on map — click to retry`;
-    banner.onclick = () => geocodeAll(notFound);
+    const nameList = notFound.map(s => `<div style="padding:1px 0;color:#fbbf24;font-size:10px">• ${escHtml(s.name)} (${s.date})</div>`).join('');
+    banner.innerHTML = `
+      <div onclick="this.parentElement.querySelector('.nf-list').style.display=this.parentElement.querySelector('.nf-list').style.display==='none'?'block':'none'" style="font-weight:600;margin-bottom:4px">
+        ⚠ ${notFound.length} streets not found — click to see list
+      </div>
+      <div class="nf-list" style="display:none;max-height:200px;overflow-y:auto;margin-bottom:6px">${nameList}</div>
+      <button onclick="geocodeAll(streets.filter(s=>s.geocodeFailed))" style="width:100%;padding:5px;background:#92400e;border:none;border-radius:4px;color:#fef3c7;cursor:pointer;font-size:11px">↺ Retry placing these streets</button>
+    `;
   } else {
     banner.classList.remove('show');
     banner.onclick = null;
