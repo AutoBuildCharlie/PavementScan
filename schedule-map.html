@@ -1017,7 +1017,7 @@ async function geocodeAll(batch) {
       st.geocodeFailed = true;
       failed++;
     }
-    if (i < batch.length - 1) await delay(800);
+    if (i < batch.length - 1) await delay(1500);
   }
 
   bar.classList.remove('show');
@@ -1047,15 +1047,34 @@ async function drawStreetFromOverpass(street) {
   let data = null;
   for (let i = 0; i < namesToTry.length; i++) {
     const n = namesToTry[i].replace(/['"\\]/g, '');
-    const query = `[out:json][timeout:10];way["name"~"^${n}$",i](${OVERPASS_BBOX});out geom;`;
-    const res = await fetch('https://overpass-api.de/api/interpreter', {
-      method: 'POST',
-      body: 'data=' + encodeURIComponent(query),
-      signal: AbortSignal.timeout(12000),
-    });
+    const query = `[out:json][timeout:15];way["name"~"^${n}$",i](${OVERPASS_BBOX});out geom;`;
+
+    // Try up to 3 times with backoff on rate limit
+    let res, attempts = 0;
+    while (attempts < 3) {
+      try {
+        res = await fetch('https://overpass-api.de/api/interpreter', {
+          method: 'POST',
+          body: 'data=' + encodeURIComponent(query),
+          signal: AbortSignal.timeout(18000),
+        });
+        if (res.status === 429 || res.status === 504) {
+          // Rate limited — wait and retry
+          await delay(4000 + attempts * 2000);
+          attempts++;
+          continue;
+        }
+        break; // success or other error — stop retrying
+      } catch(e) {
+        await delay(3000);
+        attempts++;
+      }
+    }
+
+    if (!res || !res.ok) { if (i < namesToTry.length - 1) await delay(1000); continue; }
     const d = await res.json();
     if (d.elements && d.elements.length) { data = d; break; }
-    if (i < namesToTry.length - 1) await delay(600);
+    if (i < namesToTry.length - 1) await delay(1000);
   }
 
   if (!data || !data.elements || !data.elements.length) return false;
@@ -1531,7 +1550,7 @@ async function upgradePillsToPolylines() {
         }
       }
     } catch(e) { /* keep going */ }
-    if (i < targets.length - 1) await delay(800);
+    if (i < targets.length - 1) await delay(1500);
   }
   bar.classList.remove('show');
   renderAll();
