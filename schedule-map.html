@@ -327,11 +327,12 @@
       #main {
         height: 100vh;
         overflow: hidden;
+        display: flex;
       }
       #map-area {
-        width: 100vw;
-        height: 100vh;
         flex: 1;
+        height: 100vh;
+        position: relative;
       }
       #gmap {
         position: absolute !important;
@@ -344,6 +345,65 @@
         -webkit-print-color-adjust: exact;
         print-color-adjust: exact;
         font-size: 10px;
+      }
+      /* Print legend panel */
+      #print-legend {
+        display: flex !important;
+        flex-direction: column;
+        width: 220px;
+        flex-shrink: 0;
+        background: white;
+        border-left: 1px solid #ccc;
+        padding: 14px 12px;
+        overflow: hidden;
+        font-family: 'Inter', sans-serif;
+      }
+      #print-legend h2 {
+        font-size: 12px;
+        font-weight: 700;
+        color: #111;
+        margin-bottom: 4px;
+      }
+      #print-legend .proj-sub {
+        font-size: 9px;
+        color: #666;
+        margin-bottom: 12px;
+        line-height: 1.4;
+        border-bottom: 1px solid #e5e7eb;
+        padding-bottom: 8px;
+      }
+      #print-legend .lg-day {
+        margin-bottom: 8px;
+      }
+      #print-legend .lg-day-header {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        margin-bottom: 3px;
+      }
+      #print-legend .lg-swatch {
+        width: 12px;
+        height: 12px;
+        border-radius: 2px;
+        flex-shrink: 0;
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+      }
+      #print-legend .lg-day-title {
+        font-size: 10px;
+        font-weight: 700;
+        color: #111;
+      }
+      #print-legend .lg-street {
+        font-size: 9px;
+        color: #333;
+        padding: 1px 0 1px 18px;
+        line-height: 1.4;
+      }
+      #print-legend .lg-street.split::after {
+        content: ' ★';
+        color: #888;
+        font-size: 8px;
       }
     }
   </style>
@@ -421,6 +481,13 @@
     </div><!-- end panel-scroll -->
 
     <div id="status-bar">0 streets · 0 placed on map</div>
+  </div>
+
+  <!-- Print-only legend (hidden on screen) -->
+  <div id="print-legend" style="display:none">
+    <h2>Newark 2025 Slurry Seal</h2>
+    <div class="proj-sub">City of Newark, Alameda County, CA<br>Project CIPA10005.FY2025</div>
+    <div id="print-legend-body"></div>
   </div>
 
 </div><!-- end main -->
@@ -995,11 +1062,45 @@ setupDropZone('sched-zone', files => handleScheduleUpload(files));
 
 // ─── Light map for print, dark map for screen ────────────
 window.addEventListener('beforeprint', () => {
-  if (map) map.setOptions({ styles: [] }); // default Google light map
+  if (map) map.setOptions({ styles: [] });
+  buildPrintLegend();
 });
 window.addEventListener('afterprint', () => {
-  if (map) map.setOptions({ styles: MAP_STYLES }); // restore dark
+  if (map) map.setOptions({ styles: MAP_STYLES });
 });
+
+function buildPrintLegend() {
+  const body = document.getElementById('print-legend-body');
+  if (!body) return;
+
+  const grouped = {};
+  for (const s of streets) {
+    const key = `${s.date}|${s.color}`;
+    if (!grouped[key]) grouped[key] = [];
+    grouped[key].push(s);
+  }
+
+  let html = '';
+  for (const d of days) {
+    const group = grouped[d.key] || [];
+    if (!group.length) continue;
+    const hex = COLOR_HEX[d.color] || '#888';
+
+    html += `<div class="lg-day">
+      <div class="lg-day-header">
+        <div class="lg-swatch" style="background:${hex}"></div>
+        <span class="lg-day-title">${escHtml(d.label)}</span>
+      </div>`;
+
+    for (const s of group) {
+      html += `<div class="lg-street${s.split ? ' split' : ''}">${escHtml(s.name)}</div>`;
+    }
+
+    html += `</div>`;
+  }
+
+  body.innerHTML = html || '<div style="font-size:10px;color:#999">No streets added yet</div>';
+}
 
 renderAll();
 </script>
