@@ -51,6 +51,58 @@
     .btn-export { background: #22c55e; color: #000; }
     .btn-back { background: #374151; color: #d1d5db; }
     .btn-clear { background: transparent; color: #6b7280; border: 1px solid #374151; }
+    .btn-fit { background: #1d4ed8; color: #fff; }
+
+    /* Map color key overlay */
+    #map-key {
+      position: absolute;
+      bottom: 40px;
+      left: 10px;
+      background: rgba(15,23,42,0.88);
+      border: 1px solid #374151;
+      border-radius: 6px;
+      padding: 8px 10px;
+      z-index: 5;
+      font-family: 'Inter', sans-serif;
+      min-width: 140px;
+      pointer-events: none;
+    }
+    #map-key .key-title {
+      font-size: 9px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.6px;
+      color: #6b7280;
+      margin-bottom: 6px;
+    }
+    #map-key .key-row {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      margin-bottom: 3px;
+    }
+    #map-key .key-swatch {
+      width: 10px;
+      height: 10px;
+      border-radius: 2px;
+      flex-shrink: 0;
+      -webkit-print-color-adjust: exact;
+      print-color-adjust: exact;
+    }
+    #map-key .key-label {
+      font-size: 10px;
+      color: #d1d5db;
+    }
+
+    /* Print: key stays on map, light bg */
+    @media print {
+      #map-key {
+        background: rgba(255,255,255,0.92) !important;
+        border-color: #ccc !important;
+      }
+      #map-key .key-title { color: #666 !important; }
+      #map-key .key-label { color: #111 !important; }
+    }
 
     /* ─── MAIN LAYOUT ────────────────────────────────────── */
     #main {
@@ -417,6 +469,7 @@
     <div class="subtitle">City of Newark, Alameda County, California — Schedule Map</div>
   </div>
   <div class="hdr-spacer"></div>
+  <button class="btn btn-fit" onclick="fitMapToMarkers()">⊡ Fit All</button>
   <button class="btn btn-clear" onclick="clearAll()">Clear All</button>
   <button class="btn btn-export" onclick="window.print()">Export PDF</button>
   <a href="index.html" class="btn btn-back">← PavementScan</a>
@@ -428,6 +481,11 @@
   <!-- MAP AREA -->
   <div id="map-area">
     <div id="gmap"></div>
+    <!-- Color key overlay -->
+    <div id="map-key" style="display:none">
+      <div class="key-title">Schedule</div>
+      <div id="map-key-rows"></div>
+    </div>
     <!-- Geocode progress indicator -->
     <div id="geocode-bar">
       <span class="spinner"></span>
@@ -552,6 +610,7 @@ function initMap() {
     fullscreenControl: false,
     zoomControlOptions: { position: google.maps.ControlPosition.RIGHT_BOTTOM },
   });
+  loadState();
 }
 
 // ─── PDF.js loader ───────────────────────────────────────
@@ -718,6 +777,7 @@ async function geocodeAll(batch) {
 
   bar.classList.remove('show');
   renderAll();
+  saveState();
 
   const msg = failed
     ? `${placed} placed, ${failed} not found — click those in the list to retry`
@@ -801,6 +861,7 @@ function removeStreet(id) {
   }
   streets = streets.filter(s => s.id !== id);
   renderAll();
+  saveState();
 }
 
 function addManual() {
@@ -818,6 +879,7 @@ function addManual() {
     if (result) {
       placeMarker(street, result.lat, result.lng);
       renderAll();
+      saveState();
       map.panTo({ lat: result.lat, lng: result.lng });
       map.setZoom(15);
     } else {
@@ -860,6 +922,7 @@ function placeMarker(street, lat, lng) {
     const pos = marker.position;
     street.lat = typeof pos.lat === 'function' ? pos.lat() : pos.lat;
     street.lng = typeof pos.lng === 'function' ? pos.lng() : pos.lng;
+    saveState();
   });
 
   el.addEventListener('dblclick', ev => {
@@ -869,8 +932,8 @@ function placeMarker(street, lat, lng) {
     street.placed = false;
     street.lat    = null;
     street.lng    = null;
-    renderList();
-    updateStatus();
+    renderAll();
+    saveState();
   });
 
   markers[street.id] = marker;
@@ -891,8 +954,8 @@ function selectStreet(id) {
       if (result) {
         st.geocodeFailed = false;
         placeMarker(st, result.lat, result.lng);
-        renderList();
-        updateStatus();
+        renderAll();
+        saveState();
         map.panTo({ lat: result.lat, lng: result.lng });
         map.setZoom(16);
       } else {
@@ -908,6 +971,50 @@ function selectStreet(id) {
 function renderAll() {
   renderList();
   updateStatus();
+  renderMapKey();
+}
+
+// ─── Save / Load State ───────────────────────────────────
+function saveState() {
+  try {
+    localStorage.setItem('cse_schedule_map', JSON.stringify({ streets, days }));
+  } catch(e) { console.warn('Save failed', e); }
+}
+
+function loadState() {
+  try {
+    const raw = localStorage.getItem('cse_schedule_map');
+    if (!raw) return;
+    const data = JSON.parse(raw);
+    streets = data.streets || [];
+    days    = data.days    || [];
+    for (const st of streets) {
+      if (st.placed && st.lat && st.lng) {
+        placeMarker(st, st.lat, st.lng);
+      }
+    }
+    rebuildDaySelect();
+    renderAll();
+    if (streets.some(s => s.placed)) fitMapToMarkers();
+  } catch(e) { console.warn('Load failed', e); }
+}
+
+// ─── Map Color Key ───────────────────────────────────────
+function renderMapKey() {
+  const el   = document.getElementById('map-key');
+  const rows = document.getElementById('map-key-rows');
+  if (!el || !rows) return;
+
+  if (!days.length) { el.style.display = 'none'; return; }
+
+  el.style.display = 'block';
+  rows.innerHTML = days.map(d => {
+    const hex = COLOR_HEX[d.color] || '#888';
+    return `<div class="key-row">
+      <div class="key-swatch" style="background:${hex}"></div>
+      <span class="key-label">${escHtml(d.label)}</span>
+    </div>`;
+  }).join('');
 }
 
 function renderList() {
@@ -1001,6 +1108,7 @@ function clearAll() {
   document.getElementById('geocode-bar').classList.remove('show');
   rebuildDaySelect();
   renderAll();
+  saveState();
 }
 
 // ─── Keyboard ────────────────────────────────────────────
