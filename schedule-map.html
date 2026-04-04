@@ -591,10 +591,26 @@ const COLOR_HEX = {
 
 const DARK_TEXT = new Set(['yellow', 'teal', 'green']);
 
-// Hard bounding box for Newark, CA — rejects results outside city
-const NEWARK_BBOX = { minLat: 37.497, maxLat: 37.547, minLng: -122.063, maxLng: -122.010 };
+// Hard bounding box for Newark, CA — rejects results outside city (slightly expanded for edge streets)
+const NEWARK_BBOX = { minLat: 37.493, maxLat: 37.552, minLng: -122.068, maxLng: -122.005 };
 // Overpass bbox string (lat_min,lon_min,lat_max,lon_max)
 const OVERPASS_BBOX = `${NEWARK_BBOX.minLat},${NEWARK_BBOX.minLng},${NEWARK_BBOX.maxLat},${NEWARK_BBOX.maxLng}`;
+
+// Expand common street abbreviations to full forms for Overpass matching
+function expandAbbreviations(name) {
+  const abbrevs = [
+    [/\bSt\b/, 'Street'], [/\bDr\b/, 'Drive'], [/\bAve\b/, 'Avenue'],
+    [/\bBlvd\b/, 'Boulevard'], [/\bCt\b/, 'Court'], [/\bPl\b/, 'Place'],
+    [/\bLn\b/, 'Lane'], [/\bRd\b/, 'Road'], [/\bTer\b/, 'Terrace'],
+    [/\bCir\b/, 'Circle'], [/\bPkwy\b/, 'Parkway'], [/\bHwy\b/, 'Highway'],
+  ];
+  let result = name;
+  for (const [re, full] of abbrevs) {
+    const replaced = result.replace(re, full);
+    if (replaced !== result) { result = replaced; break; }
+  }
+  return result;
+}
 
 function isInNewark(lat, lng) {
   return lat  >= NEWARK_BBOX.minLat && lat  <= NEWARK_BBOX.maxLat &&
@@ -924,17 +940,25 @@ async function drawStreetFromOverpass(street) {
     delete markers[street.id];
   }
 
-  const name  = street.name.replace(/['"\\]/g, '');
-  const query = `[out:json][timeout:10];way["name"="${name}"](${OVERPASS_BBOX});out geom;`;
+  const name     = street.name.replace(/['"\\]/g, '');
+  const expanded = expandAbbreviations(name);
+  const namesToTry = [...new Set([name, expanded])];
 
-  const res = await fetch('https://overpass-api.de/api/interpreter', {
-    method: 'POST',
-    body: 'data=' + encodeURIComponent(query),
-    signal: AbortSignal.timeout(12000),
-  });
-  const data = await res.json();
+  let data = null;
+  for (let i = 0; i < namesToTry.length; i++) {
+    const n = namesToTry[i].replace(/['"\\]/g, '');
+    const query = `[out:json][timeout:10];way["name"~"^${n}$","i"](${OVERPASS_BBOX});out geom;`;
+    const res = await fetch('https://overpass-api.de/api/interpreter', {
+      method: 'POST',
+      body: 'data=' + encodeURIComponent(query),
+      signal: AbortSignal.timeout(12000),
+    });
+    const d = await res.json();
+    if (d.elements && d.elements.length) { data = d; break; }
+    if (i < namesToTry.length - 1) await delay(300);
+  }
 
-  if (!data.elements || !data.elements.length) return false;
+  if (!data || !data.elements || !data.elements.length) return false;
 
   const hex   = COLOR_HEX[street.color] || '#888';
   const paths = data.elements
