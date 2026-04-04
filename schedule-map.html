@@ -1042,7 +1042,7 @@ async function drawStreetFromOverpass(street) {
   let data = null;
   for (let i = 0; i < namesToTry.length; i++) {
     const n = namesToTry[i].replace(/['"\\]/g, '');
-    const query = `[out:json][timeout:10];way["name"~"^${n}$","i"](${OVERPASS_BBOX});out geom;`;
+    const query = `[out:json][timeout:10];way["name"~"^${n}$",i](${OVERPASS_BBOX});out geom;`;
     const res = await fetch('https://overpass-api.de/api/interpreter', {
       method: 'POST',
       body: 'data=' + encodeURIComponent(query),
