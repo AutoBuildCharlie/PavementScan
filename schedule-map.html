@@ -617,6 +617,89 @@ function isInNewark(lat, lng) {
          lng >= NEWARK_BBOX.minLng && lng <= NEWARK_BBOX.maxLng;
 }
 
+// Normalize a street name for fuzzy comparison
+function normalizeName(name) {
+  return expandAbbreviations(name).toLowerCase().replace(/[^a-z0-9\s]/g, '').trim();
+}
+
+// Word overlap score between two normalized names (0–1)
+function wordOverlap(a, b) {
+  const wa = new Set(a.split(/\s+/));
+  const wb = new Set(b.split(/\s+/));
+  let shared = 0;
+  for (const w of wa) if (wb.has(w)) shared++;
+  return shared / Math.max(wa.size, wb.size);
+}
+
+// Fetch every named way in Newark from Overpass (once, cached in memory)
+async function fetchNewarkStreetCache() {
+  if (newarkStreetCache) return newarkStreetCache;
+  const query = `[out:json][timeout:30];way["name"](${OVERPASS_BBOX});out geom;`;
+  const res = await fetch('https://overpass-api.de/api/interpreter', {
+    method: 'POST',
+    body: 'data=' + encodeURIComponent(query),
+    signal: AbortSignal.timeout(35000),
+  });
+  const data = await res.json();
+  // Group geometry by normalized name
+  const cache = {};
+  for (const el of (data.elements || [])) {
+    const osmName = el.tags?.name;
+    if (!osmName || !el.geometry || el.geometry.length < 2) continue;
+    const key = normalizeName(osmName);
+    if (!cache[key]) cache[key] = { osmName, elements: [] };
+    cache[key].elements.push(el);
+  }
+  newarkStreetCache = cache;
+  return cache;
+}
+
+// Find best fuzzy match for a street name in the Newark cache
+function fuzzyMatchFromCache(name, cache) {
+  const norm = normalizeName(name);
+  // Exact normalized match first
+  if (cache[norm]) return cache[norm];
+  // Word overlap fallback (≥0.67 = at least 2 of 3 words match)
+  let best = null, bestScore = 0;
+  for (const [key, val] of Object.entries(cache)) {
+    const score = wordOverlap(norm, key);
+    if (score >= 0.67 && score > bestScore) { best = val; bestScore = score; }
+  }
+  return best;
+}
+
+// Draw polylines from cached Overpass elements
+function drawFromCachedElements(street, cachedEntry) {
+  const hex   = COLOR_HEX[street.color] || '#888';
+  const paths = cachedEntry.elements
+    .filter(e => e.geometry && e.geometry.length > 1)
+    .map(e => e.geometry.map(p => ({ lat: p.lat, lng: p.lon })));
+  if (!paths.length) return false;
+
+  const polylines = paths.map(path => new google.maps.Polyline({
+    path, strokeColor: hex, strokeOpacity: 0.85, strokeWeight: 6,
+    map, zIndex: 2, clickable: true,
+  }));
+
+  polylines.forEach(poly => {
+    poly.addListener('dblclick', () => {
+      polylines.forEach(p => p.setMap(null));
+      delete markers[street.id];
+      street.placed = false; street.lat = null; street.lng = null; street.paths = null;
+      renderAll(); saveState();
+    });
+  });
+
+  const allPts = paths.flat();
+  street.lat   = allPts.reduce((s, p) => s + p.lat, 0) / allPts.length;
+  street.lng   = allPts.reduce((s, p) => s + p.lng, 0) / allPts.length;
+  street.placed = true;
+  street.paths  = paths;
+  street.geocodeFailed = false;
+  markers[street.id] = { setMap: (m) => polylines.forEach(p => p.setMap(m)) };
+  return true;
+}
+
 const MAP_STYLES = [
   { elementType: 'geometry',             stylers: [{ color: '#1d2535' }] },
   { elementType: 'labels.text.fill',     stylers: [{ color: '#8a9ab0' }] },
@@ -642,6 +725,7 @@ let days             = [];   // [{key, label, date, day, color}] sorted
 let markers          = {};   // id → { setMap } or ScheduleLabel
 let map              = null;
 let activeWeekFilter = null; // null = All, 1/2/3... = specific week
+let newarkStreetCache = null; // all OSM ways in Newark bbox, keyed by normalized name
 
 // ─── Map Init ────────────────────────────────────────────
 function initMap() {
@@ -890,6 +974,10 @@ async function geocodeAll(batch) {
   const msgEl = document.getElementById('geocode-msg');
   bar.classList.add('show');
 
+  // Pre-fetch full Newark street list in background while processing starts
+  msgEl.textContent = 'Loading Newark street map…';
+  const cachePromise = fetchNewarkStreetCache().catch(() => null);
+
   let placed = 0;
   let failed = 0;
 
@@ -897,20 +985,27 @@ async function geocodeAll(batch) {
     const st = batch[i];
     msgEl.textContent = `Drawing ${i + 1} of ${batch.length}: ${st.name}`;
     try {
-      // Try Overpass road geometry first (hard Newark bounds — no out-of-city results)
+      // 1. Try Overpass with exact + expanded name
       const drawn = await drawStreetFromOverpass(st);
       if (drawn) {
         placed++;
       } else {
-        // Fallback: geocoder with bounds check
-        const result = await geocodeStreet(st.name);
-        if (result) {
-          st.geocodeFailed = false;
-          placeMarker(st, result.lat, result.lng);
+        // 2. Try fuzzy match against full Newark street cache
+        const cache = await cachePromise;
+        const cacheHit = cache ? fuzzyMatchFromCache(st.name, cache) : null;
+        if (cacheHit && drawFromCachedElements(st, cacheHit)) {
           placed++;
         } else {
-          st.geocodeFailed = true;
-          failed++;
+          // 3. Final fallback: Google geocoder with bounds check
+          const result = await geocodeStreet(st.name);
+          if (result) {
+            st.geocodeFailed = false;
+            placeMarker(st, result.lat, result.lng);
+            placed++;
+          } else {
+            st.geocodeFailed = true;
+            failed++;
+          }
         }
       }
     } catch (e) {
@@ -1142,13 +1237,20 @@ function selectStreet(id) {
     showToast(`Looking up "${st.name}"...`);
     drawStreetFromOverpass(st).then(async drawn => {
       if (!drawn) {
-        const result = await geocodeStreet(st.name);
-        if (result) {
-          st.geocodeFailed = false;
-          placeMarker(st, result.lat, result.lng);
+        // Try fuzzy cache match
+        const cache = await fetchNewarkStreetCache().catch(() => null);
+        const hit = cache ? fuzzyMatchFromCache(st.name, cache) : null;
+        if (hit && drawFromCachedElements(st, hit)) {
+          // placed via cache
         } else {
-          st.geocodeFailed = true;
-          showToast(`Still can't find "${st.name}" in Newark`);
+          const result = await geocodeStreet(st.name);
+          if (result) {
+            st.geocodeFailed = false;
+            placeMarker(st, result.lat, result.lng);
+          } else {
+            st.geocodeFailed = true;
+            showToast(`Still can't find "${st.name}" in Newark`);
+          }
         }
       }
       renderAll();
