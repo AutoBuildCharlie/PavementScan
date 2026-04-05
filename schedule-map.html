@@ -1208,23 +1208,24 @@ async function handlePlanUpload(files) {
 
 async function callPlanAI(pages, pageNum) {
   const prompt = `This is page ${pageNum} of an engineering plan set for Newark's 2025 Citywide Slurry Seal Project.
-The gray-shaded areas show the exact pavement segments to be treated with slurry seal.
 
-For EVERY gray-shaded street segment visible on this page:
-1. Street name — read exactly as labeled on the map, preserve abbreviations
-2. Beginning cross street — the intersecting street where the gray shading starts
-3. Ending cross street — the intersecting street where the gray shading ends (use "dead end" for cul-de-sacs)
-4. Confidence — "high" if you can clearly read both intersections, "low" if uncertain
+CRITICAL RULE: Only extract streets where the ROAD ITSELF is filled with a solid gray/dark gray color (the treatment area). Many street names appear as labels on this plan just to show surrounding context — DO NOT include those. A street is only being treated if you can see the road surface visibly shaded/filled gray. If the road surface is white or unshaded, it is a background reference street — skip it even if it has a name label.
+
+For each street whose road surface is visibly gray-shaded:
+1. Street name — read exactly as labeled, preserve abbreviations (Dr, St, Ave, Ct, Blvd, Pl as-is)
+2. Beginning cross street — the intersecting street where the gray shading STARTS
+3. Ending cross street — the intersecting street where the gray shading ENDS (use "dead end" for cul-de-sacs)
+4. Confidence — "high" if clearly readable, "low" if uncertain
 
 Return ONLY a JSON array, no other text:
 [{"name": "Elm St", "from": "Cedar Blvd", "to": "Thornton Ave", "confidence": "high"}, ...]
 
 Rules:
-- Only include streets that are GRAY SHADED — not background streets
-- Read names exactly as printed — do not expand abbreviations (keep Dr, St, Ave, Blvd, Ct, Pl as-is)
-- If the segment continues off the page edge (matchline), use the last visible cross street
-- If you cannot confidently read a name or intersection, still include it but set confidence to "low"
-- Do NOT include streets that are just background reference streets (not shaded)`;
+- ONLY include streets with a visibly gray-filled road surface — this is the treatment area
+- Street name labels that appear near white/unshaded roads are context only — skip them
+- If the gray shading continues off the page edge (matchline), use the last visible cross street
+- If uncertain whether a road is shaded or not, set confidence to "low"
+- Do NOT guess — if the road surface is not clearly gray, exclude it`;
 
   const content = [{ type: 'text', text: prompt }];
   for (const p of pages) {
