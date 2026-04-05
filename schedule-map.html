@@ -662,10 +662,7 @@
         <span style="font-size:10px;color:#6b7280">OR ADD NEW</span>
         <div style="flex:1;height:1px;background:#374151"></div>
       </div>
-      <input id="new-street-name" type="text" placeholder="New street name..." style="width:100%;background:#111827;border:1px solid #374151;border-radius:6px;padding:7px 10px;color:#e0e0e0;font-size:12px;margin-bottom:8px;box-sizing:border-box">
-      <select id="new-street-day" style="width:100%;background:#111827;border:1px solid #374151;border-radius:6px;padding:7px 10px;color:#e0e0e0;font-size:12px;margin-bottom:14px;box-sizing:border-box">
-        <option value="">Select day...</option>
-      </select>
+      <input id="new-street-name" type="text" placeholder="New street name..." style="width:100%;background:#111827;border:1px solid #374151;border-radius:6px;padding:7px 10px;color:#e0e0e0;font-size:12px;margin-bottom:14px;box-sizing:border-box">
       <div style="display:flex;gap:8px">
         <button onclick="confirmNewStreet()" style="flex:1;padding:8px;background:#22c55e;border:none;border-radius:6px;color:#fff;font-weight:600;cursor:pointer;font-size:13px">Save Street</button>
         <button onclick="cancelNewStreet()" style="padding:8px 14px;background:#374151;border:none;border-radius:6px;color:#d1d5db;cursor:pointer;font-size:13px">Cancel</button>
@@ -2322,9 +2319,6 @@ function finishPinMode() {
     document.getElementById('pin-bar').style.display = 'none';
     document.getElementById('new-street-search').value = '';
     document.getElementById('new-street-name').value = '';
-    const daySel = document.getElementById('new-street-day');
-    daySel.innerHTML = '<option value="">Select day...</option>';
-    for (const d of days) daySel.innerHTML += `<option value="${escHtml(d.key)}">${escHtml(d.label)}</option>`;
     populateNewStreetPicker('');
     const modal = document.getElementById('new-street-modal');
     modal.style.display = 'flex';
@@ -2378,12 +2372,9 @@ function confirmNewStreet() {
     if (!st) { showToast('Street not found'); return; }
   } else {
     // Create new street from name+day fields
-    const name   = document.getElementById('new-street-name').value.trim();
-    const dayVal = document.getElementById('new-street-day').value;
-    if (!name || !dayVal) { showToast('Select a street from the list, or enter a name and day'); return; }
-    const [date, color] = dayVal.split('|');
-    const d = days.find(x => x.key === dayVal);
-    st = pushStreet({ name, date, day: d?.day || '', color, split: false });
+    const name = document.getElementById('new-street-name').value.trim();
+    if (!name) { showToast('Select a street from the list, or enter a name'); return; }
+    st = pushStreet({ name, date: '', day: '', color: '#888888', split: false });
   }
 
   const hex = COLOR_HEX[st.color] || '#888';
