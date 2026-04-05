@@ -764,6 +764,7 @@ const MAP_STYLES = [
 // ─── State ───────────────────────────────────────────────
 let streets          = [];   // [{id, name, date, day, color, split, placed, lat, lng}]
 let days             = [];   // [{key, label, date, day, color}] sorted
+let savedSegments    = [];   // [{name, from, to, confidence, sourcePage}] — persisted from plan PDF
 let markers          = {};   // id → { setMap } or ScheduleLabel
 let map              = null;
 let activeWeekFilter = null; // null = All, 1/2/3... = specific week
@@ -1080,6 +1081,9 @@ async function handlePlanUpload(files) {
     if (p < totalPages) await delay(1200);
   }
 
+  // Save segments to localStorage so they persist for future weeks
+  savedSegments = allSegments;
+
   statusEl.innerHTML = `<span class="spinner"></span>Matching ${allSegments.length} segments to streets...`;
   const matched = applySegmentData(allSegments);
   statusEl.innerHTML = `✓ Matched ${matched} streets — redrawing exact segments...`;
@@ -1146,17 +1150,19 @@ Rules:
 }
 
 // Match extracted segment data to existing streets
-function applySegmentData(segments) {
+// Optional targetList — if provided, only applies to those streets (e.g. newly added)
+function applySegmentData(segments, targetList) {
+  const pool = targetList || streets;
   let matched = 0;
   for (const seg of segments) {
     if (!seg.name || !seg.from) continue;
     const normSeg = normalizeName(seg.name);
-    const matches = streets.filter(s => wordOverlap(normalizeName(s.name), normSeg) >= 0.67);
+    const matches = pool.filter(s => wordOverlap(normalizeName(s.name), normSeg) >= 0.67);
     for (const st of matches) {
       if (!st.beginAt) {
-        st.beginAt      = seg.from;
-        st.endAt        = seg.to || 'dead end';
-        st.segSource    = `Plan page ${seg.sourcePage || '?'}`;
+        st.beginAt       = seg.from;
+        st.endAt         = seg.to || 'dead end';
+        st.segSource     = `Plan page ${seg.sourcePage || '?'}`;
         st.segConfidence = seg.confidence || 'high';
         matched++;
       }
@@ -1450,6 +1456,8 @@ function addManual() {
   const [date, color] = dayVal.split('|');
   const d = days.find(x => x.key === dayVal);
   const street = pushStreet({ name, date, day: d?.day || '', color, split: false });
+  // Auto-apply any saved segment data for this street
+  if (savedSegments.length) applySegmentData(savedSegments, [street]);
   document.getElementById('manual-name').value = '';
   renderAll();
   // Auto-geocode the manual entry too
@@ -1581,7 +1589,7 @@ function renderAll() {
 // ─── Save / Load State ───────────────────────────────────
 function saveState() {
   try {
-    localStorage.setItem('cse_schedule_map', JSON.stringify({ streets, days }));
+    localStorage.setItem('cse_schedule_map', JSON.stringify({ streets, days, savedSegments }));
   } catch(e) { console.warn('Save failed', e); }
 }
 
@@ -1590,8 +1598,9 @@ function loadState() {
     const raw = localStorage.getItem('cse_schedule_map');
     if (!raw) return;
     const data = JSON.parse(raw);
-    streets = data.streets || [];
-    days    = data.days    || [];
+    streets       = data.streets       || [];
+    days          = data.days          || [];
+    savedSegments = data.savedSegments || [];
     for (const st of streets) {
       if (!st.placed) continue;
       if (st.paths && st.paths.length) {
