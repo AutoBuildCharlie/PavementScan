@@ -871,6 +871,8 @@ class ScheduleLabel extends google.maps.OverlayView {
     // Double-click to remove
     div.addEventListener('dblclick', (e) => {
       e.stopPropagation();
+      // Remove polylines first (before deleting marker reference)
+      if (markers[this.street.id]) markers[this.street.id].setMap(null);
       this.setMap(null);
       delete markers[this.street.id];
       this.street.placed = false;
@@ -1083,9 +1085,9 @@ async function handlePlanUpload(files) {
   if (!files || !files.length) return;
   const statusEl = document.getElementById('plan-status');
   try {
-  // Only handle PDFs and images
-  const file = files[0];
-  const isPdf = file.type === 'application/pdf';
+    // Only handle PDFs and images
+    const file = files[0];
+    const isPdf = file.type === 'application/pdf';
 
   await loadPdfJs();
   let pdf = null;
