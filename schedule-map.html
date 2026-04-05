@@ -622,6 +622,11 @@
       <div id="review-list"></div>
     </div>
 
+    <!-- Pin mode bar — shown when manually drawing a street -->
+    <div id="pin-bar" style="display:none;padding:8px 12px;background:#1e3a5f;border-top:2px solid #3b82f6;font-size:11px;color:#fff;display:none;align-items:center;gap:8px;flex-shrink:0">
+      <span id="pin-msg" style="flex:1"></span>
+      <button onclick="cancelPinMode()" style="background:#374151;border:none;border-radius:4px;color:#d1d5db;padding:4px 10px;cursor:pointer;font-size:11px">✕ Cancel</button>
+    </div>
     <div id="status-bar">0 streets · 0 placed on map</div>
     <div id="upgrade-bar" style="display:none;padding:6px 14px;border-top:1px solid #374151;">
       <button onclick="upgradePillsToPolylines()" style="width:100%;padding:6px;background:#1d4ed8;border:none;border-radius:4px;color:#fff;cursor:pointer;font-size:11px;font-weight:600">
@@ -843,8 +848,11 @@ function initMap() {
   });
   // Define ScheduleLabel here so google.maps is guaranteed to be loaded
   _defineScheduleLabel();
-  // Close info popup when clicking anywhere on the map
-  map.addListener('click', () => { if (infoWindow) infoWindow.close(); });
+  // Map click — handle pin mode or close info popup
+  map.addListener('click', (e) => {
+    if (pinMode.active) { handlePinClick(e.latLng); return; }
+    if (infoWindow) infoWindow.close();
+  });
   loadState();
 }
 
@@ -1819,7 +1827,7 @@ function renderList() {
         <div class="s-dot" style="background:${s.geocodeFailed ? '#f59e0b' : hex}"></div>
         <span class="s-name">${escHtml(s.name)}</span>
         ${s.split ? '<span class="split-badge">split</span>' : ''}
-        ${s.geocodeFailed ? '<span style="font-size:9px;color:#f59e0b;margin-left:2px">?</span>' : ''}
+        ${s.geocodeFailed ? `<span onclick="event.stopPropagation();startPinMode('${s.id}')" title="Draw manually" style="font-size:10px;color:#60a5fa;margin-left:4px;cursor:pointer">✏</span>` : ''}
         <span class="del-btn" onclick="event.stopPropagation();removeStreet('${s.id}')">×</span>
       </div>`;
     }
@@ -2126,6 +2134,60 @@ function buildPrintLegend() {
   }
 
   body.innerHTML = html || '<div style="font-size:10px;color:#999">No streets added yet</div>';
+}
+
+// ─── Manual Pin Mode ─────────────────────────────────────
+let pinMode = { active: false, street: null, start: null, startMarker: null };
+
+function startPinMode(streetId) {
+  const st = streets.find(s => s.id === streetId);
+  if (!st) return;
+  cancelPinMode(); // clear any existing
+  pinMode = { active: true, street: st, start: null, startMarker: null };
+  map.setOptions({ draggableCursor: 'crosshair' });
+  const bar = document.getElementById('pin-bar');
+  bar.style.display = 'flex';
+  document.getElementById('pin-msg').textContent = `📍 ${st.name} — click START point on map`;
+}
+
+function cancelPinMode() {
+  if (pinMode.startMarker) pinMode.startMarker.setMap(null);
+  pinMode = { active: false, street: null, start: null, startMarker: null };
+  map.setOptions({ draggableCursor: '' });
+  document.getElementById('pin-bar').style.display = 'none';
+}
+
+function handlePinClick(latLng) {
+  if (!pinMode.active) return;
+  if (!pinMode.start) {
+    // First click — record start, place marker
+    pinMode.start = latLng;
+    pinMode.startMarker = new google.maps.Marker({
+      position: latLng, map,
+      icon: { path: google.maps.SymbolPath.CIRCLE, scale: 7, fillColor: '#22c55e', fillOpacity: 1, strokeColor: '#fff', strokeWeight: 2 },
+    });
+    document.getElementById('pin-msg').textContent = `📍 ${pinMode.street.name} — click END point on map`;
+  } else {
+    // Second click — draw polyline
+    const st   = pinMode.street;
+    const path = [{ lat: pinMode.start.lat(), lng: pinMode.start.lng() }, { lat: latLng.lat(), lng: latLng.lng() }];
+    const hex  = COLOR_HEX[st.color] || '#888';
+    if (markers[st.id]) markers[st.id].setMap(null);
+    const polylines = [new google.maps.Polyline({
+      path, strokeColor: hex, strokeOpacity: 0.85, strokeWeight: 6, map, zIndex: 2, clickable: true,
+    })];
+    attachPolylineListeners(polylines, st);
+    st.paths  = [path];
+    st.lat    = (path[0].lat + path[1].lat) / 2;
+    st.lng    = (path[0].lng + path[1].lng) / 2;
+    st.placed = true;
+    st.geocodeFailed = false;
+    markers[st.id] = { setMap: (m) => polylines.forEach(p => p.setMap(m)) };
+    cancelPinMode();
+    renderAll();
+    saveState();
+    showToast(`${st.name} drawn manually`);
+  }
 }
 
 // ─── Street Search ───────────────────────────────────────
