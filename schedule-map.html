@@ -700,6 +700,39 @@ function expandAbbreviations(name) {
   return result;
 }
 
+// Generate all name variants to try when searching Overpass
+function nameVariants(name) {
+  const variants = new Set();
+  const add = (n) => { if (n && n.trim()) variants.add(n.trim()); };
+
+  add(name);
+  add(expandAbbreviations(name));
+
+  // Saint ↔ St swap
+  const saintToSt = name.replace(/\bSaint\b/gi, 'St');
+  const stToSaint = name.replace(/\bSt\b/g, 'Saint');
+  add(saintToSt);
+  add(stToSaint);
+  add(expandAbbreviations(saintToSt));
+  add(expandAbbreviations(stToSaint));
+
+  // Handle trailing s on second-to-last word (Edward ↔ Edwards, Matthew ↔ Matthews)
+  const words = name.split(/\s+/);
+  if (words.length >= 2) {
+    const typeIdx = words.length - 1;
+    const nameIdx = typeIdx - 1;
+    const withS   = words.map((w, i) => i === nameIdx && !w.endsWith('s') ? w + 's' : w).join(' ');
+    const withoutS = words.map((w, i) => i === nameIdx && w.endsWith('s') ? w.slice(0,-1) : w).join(' ');
+    add(withS); add(expandAbbreviations(withS));
+    add(withoutS); add(expandAbbreviations(withoutS));
+    // Combine saint swap + plural swap
+    add(withS.replace(/\bSaint\b/gi, 'St'));
+    add(withoutS.replace(/\bSaint\b/gi, 'St'));
+  }
+
+  return [...variants];
+}
+
 function isInNewark(lat, lng) {
   return lat  >= NEWARK_BBOX.minLat && lat  <= NEWARK_BBOX.maxLat &&
          lng >= NEWARK_BBOX.minLng && lng <= NEWARK_BBOX.maxLng;
@@ -745,11 +778,14 @@ function normalizeName(name) {
 
 // Word overlap score between two normalized names (0–1)
 function wordOverlap(a, b) {
-  const wa = new Set(a.split(/\s+/));
-  const wb = new Set(b.split(/\s+/));
+  const wa = a.split(/\s+/);
+  const wb = b.split(/\s+/);
   let shared = 0;
-  for (const w of wa) if (wb.has(w)) shared++;
-  return shared / Math.max(wa.size, wb.size);
+  for (const w of wa) {
+    // exact match or one is a prefix/suffix of the other (edward ≈ edwards)
+    if (wb.some(v => v === w || v.startsWith(w) || w.startsWith(v))) shared++;
+  }
+  return shared / Math.max(wa.length, wb.length);
 }
 
 // Fetch every named way in Newark from Overpass (once, cached in memory)
@@ -778,14 +814,18 @@ async function fetchNewarkStreetCache() {
 
 // Find best fuzzy match for a street name in the Newark cache
 function fuzzyMatchFromCache(name, cache) {
-  const norm = normalizeName(name);
-  // Exact normalized match first
-  if (cache[norm]) return cache[norm];
-  // Word overlap fallback (≥0.67 = at least 2 of 3 words match)
+  // Try all name variants — exact match first across all variants
+  const variants = nameVariants(name).map(normalizeName);
+  for (const norm of variants) {
+    if (cache[norm]) return cache[norm];
+  }
+  // Word overlap fallback across all variants (≥0.67 threshold)
   let best = null, bestScore = 0;
-  for (const [key, val] of Object.entries(cache)) {
-    const score = wordOverlap(norm, key);
-    if (score >= 0.67 && score > bestScore) { best = val; bestScore = score; }
+  for (const norm of variants) {
+    for (const [key, val] of Object.entries(cache)) {
+      const score = wordOverlap(norm, key);
+      if (score >= 0.67 && score > bestScore) { best = val; bestScore = score; }
+    }
   }
   return best;
 }
@@ -1352,9 +1392,8 @@ async function drawStreetFromOverpass(street) {
     delete markers[street.id];
   }
 
-  const name     = street.name.replace(/['"\\]/g, '');
-  const expanded = expandAbbreviations(name);
-  const namesToTry = [...new Set([name, expanded])];
+  const name       = street.name.replace(/['"\\]/g, '');
+  const namesToTry = nameVariants(name).map(n => n.replace(/['"\\]/g, ''));
 
   let data = null;
   for (let i = 0; i < namesToTry.length; i++) {
