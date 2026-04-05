@@ -1596,7 +1596,7 @@ function pushStreet(s) {
   const street = {
     id,
     name:   s.name  || 'Unknown St',
-    date:   s.date  || '?',
+    date:   s.date  || '',
     day:    s.day   || '',
     color:  s.color || 'green',
     split:  !!s.split,
@@ -2383,21 +2383,23 @@ function filterNewStreetList() {
   populateNewStreetPicker(document.getElementById('new-street-search').value);
 }
 
-// Save the drawn path — uses picker if a street is selected, otherwise name+day fields
+// Save the drawn path — typed name takes priority; falls back to picker selection
 function confirmNewStreet() {
-  const path   = pinMode.pendingPath;
-  const pickId = document.getElementById('new-street-pick').value;
+  const path     = pinMode.pendingPath;
+  const typedName = document.getElementById('new-street-name').value.trim();
+  const pickId   = document.getElementById('new-street-pick').value;
   let st;
 
-  if (pickId) {
-    // Use existing street from list
+  if (typedName) {
+    // User typed a custom name — always use that
+    st = pushStreet({ name: typedName, date: '', day: '', color: '#888888', split: false });
+  } else if (pickId) {
+    // No typed name — use selected street from list
     st = streets.find(s => s.id === pickId);
     if (!st) { showToast('Street not found'); return; }
   } else {
-    // Create new street from name+day fields
-    const name = document.getElementById('new-street-name').value.trim();
-    if (!name) { showToast('Select a street from the list, or enter a name'); return; }
-    st = pushStreet({ name, date: '', day: '', color: '#888888', split: false });
+    showToast('Select a street from the list, or type a name below');
+    return;
   }
 
   const hex = COLOR_HEX[st.color] || '#888';
