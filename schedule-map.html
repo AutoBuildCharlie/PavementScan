@@ -766,13 +766,27 @@ function fuzzyMatchFromCache(name, cache) {
   return best;
 }
 
-// Draw polylines from cached Overpass elements
-function drawFromCachedElements(street, cachedEntry, cache) {
-  const hex   = COLOR_HEX[street.color] || '#888';
-  const paths = cachedEntry.elements
+// Draw polylines from cached Overpass elements, clipping to beginAt/endAt if present
+async function drawFromCachedElements(street, cachedEntry, cache) {
+  const hex      = COLOR_HEX[street.color] || '#888';
+  const rawPaths = cachedEntry.elements
     .filter(e => e.geometry && e.geometry.length > 1)
     .map(e => e.geometry.map(p => ({ lat: p.lat, lng: p.lon })));
-  if (!paths.length) return false;
+  if (!rawPaths.length) return false;
+
+  // Clip to exact segment if we have intersection data from the plan PDF
+  let paths = rawPaths;
+  if (street.beginAt || street.endAt) {
+    const [startPt, endPt] = await Promise.all([
+      street.beginAt ? geocodeIntersection(street.name, street.beginAt) : Promise.resolve(null),
+      street.endAt && street.endAt !== 'dead end' ? geocodeIntersection(street.name, street.endAt) : Promise.resolve(null),
+    ]);
+    if (startPt || endPt) {
+      const allPts  = rawPaths.flat();
+      const clipped = clipPathToSegment(allPts, startPt, endPt);
+      if (clipped.length >= 2) paths = [clipped];
+    }
+  }
 
   const polylines = paths.map(path => new google.maps.Polyline({
     path, strokeColor: hex, strokeOpacity: 0.85, strokeWeight: 6,
@@ -1311,7 +1325,7 @@ async function geocodeAll(batch) {
     try {
       // 1. Try fuzzy match against full Newark street cache (local — no API call)
       const cacheHit = cache ? fuzzyMatchFromCache(st.name, cache) : null;
-      if (cacheHit && drawFromCachedElements(st, cacheHit, cache)) { placed++; continue; }
+      if (cacheHit && await drawFromCachedElements(st, cacheHit, cache)) { placed++; continue; }
       // No confident match — mark as not found (no geocoder guesses)
       st.geocodeFailed = true;
       failed++;
@@ -1570,7 +1584,7 @@ function selectStreet(id) {
         // Try fuzzy cache match
         const cache = await fetchNewarkStreetCache().catch(() => null);
         const hit = cache ? fuzzyMatchFromCache(st.name, cache) : null;
-        if (hit && drawFromCachedElements(st, hit, cache)) {
+        if (hit && await drawFromCachedElements(st, hit, cache)) {
           // placed via cache
         } else {
           const result = await geocodeStreet(st.name);
@@ -1874,7 +1888,7 @@ async function upgradePillsToPolylines() {
       st.placed = false; st.lat = null; st.lng = null;
 
       const hit = cache ? fuzzyMatchFromCache(st.name, cache) : null;
-      if (hit && drawFromCachedElements(st, hit, cache)) { upgraded++; continue; }
+      if (hit && await drawFromCachedElements(st, hit, cache)) { upgraded++; continue; }
       // Tier 2: per-street Overpass regex call (catches streets the cache fuzzy match missed)
       const drawnByOverpass = await drawStreetFromOverpass(st);
       if (drawnByOverpass) { upgraded++; continue; }
