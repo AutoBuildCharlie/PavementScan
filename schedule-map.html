@@ -1890,8 +1890,6 @@ async function upgradePillsToPolylines() {
       const hit = cache ? fuzzyMatchFromCache(st.name, cache) : null;
       if (hit && await drawFromCachedElements(st, hit, cache)) { upgraded++; continue; }
       // Tier 2: per-street Overpass regex call (catches streets the cache fuzzy match missed)
-      const drawnByOverpass = await drawStreetFromOverpass(st);
-      if (drawnByOverpass) { upgraded++; continue; }
       // Can't confirm — mark as not found, no geocoder guesses
       st.geocodeFailed = true;
       st.placed = false;
