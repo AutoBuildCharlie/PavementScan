@@ -518,6 +518,7 @@
   </div>
   <div class="hdr-spacer"></div>
   <button class="btn btn-fit" onclick="fitMapToMarkers()">⊡ Fit All</button>
+  <button class="btn btn-clear" onclick="clearStreets()">Clear Streets</button>
   <button class="btn btn-clear" onclick="clearAll()">Clear All</button>
   <button class="btn btn-export" onclick="window.print()">Export PDF</button>
   <a href="index.html" class="btn btn-back">← PavementScan</a>
@@ -1876,6 +1877,21 @@ async function upgradePillsToPolylines() {
   renderAll();
   saveState();
   showToast(`Upgraded ${upgraded} of ${targets.length} labels to road lines`);
+}
+
+// ─── Clear Streets Only (keeps saved segments from plan PDF) ─
+function clearStreets() {
+  if (!confirm('Clear all placed streets and colors? Saved plan PDF segments will be kept.')) return;
+  for (const id in markers) markers[id].setMap(null);
+  markers          = {};
+  streets          = [];
+  days             = [];
+  activeWeekFilter = null;
+  document.getElementById('extract-status').textContent = '';
+  document.getElementById('geocode-bar').classList.remove('show');
+  rebuildDaySelect();
+  renderAll();
+  saveState();
 }
 
 // ─── Clear All ───────────────────────────────────────────
