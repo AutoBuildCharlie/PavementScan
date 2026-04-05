@@ -768,21 +768,10 @@ function fuzzyMatchFromCache(name, cache) {
 // Draw polylines from cached Overpass elements
 function drawFromCachedElements(street, cachedEntry, cache) {
   const hex   = COLOR_HEX[street.color] || '#888';
-  let paths = cachedEntry.elements
+  const paths = cachedEntry.elements
     .filter(e => e.geometry && e.geometry.length > 1)
     .map(e => e.geometry.map(p => ({ lat: p.lat, lng: p.lon })));
   if (!paths.length) return false;
-
-  // Clip to exact segment using local OSM intersection — no API calls
-  if (street.beginAt || street.endAt) {
-    const allPts = paths.flat();
-    const startPt = street.beginAt ? findCrossPoint(allPts, street.beginAt, cache) : null;
-    const endPt   = street.endAt   ? findCrossPoint(allPts, street.endAt,   cache) : null;
-    if (startPt || endPt) {
-      const clipped = clipPathToSegment(allPts, startPt, endPt);
-      if (clipped.length >= 2) paths = [clipped];
-    }
-  }
 
   const polylines = paths.map(path => new google.maps.Polyline({
     path, strokeColor: hex, strokeOpacity: 0.85, strokeWeight: 6,
