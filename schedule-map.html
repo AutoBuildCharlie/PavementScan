@@ -656,7 +656,7 @@ const COLOR_HEX = {
 const DARK_TEXT = new Set(['yellow', 'teal', 'green']);
 
 // Hard bounding box for Newark, CA — rejects results outside city (slightly expanded for edge streets)
-const NEWARK_BBOX = { minLat: 37.493, maxLat: 37.552, minLng: -122.068, maxLng: -122.005 };
+const NEWARK_BBOX = { minLat: 37.488, maxLat: 37.562, minLng: -122.075, maxLng: -121.998 };
 // Overpass bbox string (lat_min,lon_min,lat_max,lon_max)
 const OVERPASS_BBOX = `${NEWARK_BBOX.minLat},${NEWARK_BBOX.minLng},${NEWARK_BBOX.maxLat},${NEWARK_BBOX.maxLng}`;
 
@@ -1430,9 +1430,7 @@ function geocodeStreet(name) {
     }, (results, status) => {
       if (status === 'OK' && results.length) {
         const loc = results[0].geometry.location;
-        const lat = loc.lat(), lng = loc.lng();
-        // Reject results outside Newark city limits
-        resolve(isInNewark(lat, lng) ? { lat, lng } : null);
+        resolve({ lat: loc.lat(), lng: loc.lng() });
       } else {
         resolve(null);
       }
