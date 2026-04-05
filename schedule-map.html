@@ -737,6 +737,7 @@ async function fetchNewarkStreetCache() {
     body: 'data=' + encodeURIComponent(query),
     signal: AbortSignal.timeout(35000),
   });
+  if (!res.ok) throw new Error(`Overpass error ${res.status}`);
   const data = await res.json();
   // Group geometry by normalized name
   const cache = {};
@@ -875,6 +876,7 @@ class ScheduleLabel extends google.maps.OverlayView {
       this.street.placed = false;
       this.street.lat    = null;
       this.street.lng    = null;
+      this.street.paths  = null;
       renderAll();
       saveState();
     });
@@ -964,57 +966,53 @@ async function pdfToImages(file) {
 async function handleScheduleUpload(files) {
   if (!files || !files.length) return;
   const statusEl = document.getElementById('extract-status');
-
-  // Expand PDFs into page images
-  let pages = []; // [{b64, mimeType}]
-  for (const file of files) {
-    if (file.type === 'application/pdf') {
-      statusEl.innerHTML = `<span class="spinner"></span>Rendering PDF pages...`;
-      try {
-        const images = await pdfToImages(file);
-        for (const b64 of images) pages.push({ b64, mimeType: 'image/jpeg' });
-      } catch(e) { console.error('PDF render error', e); }
-    } else {
-      const b64 = await fileToBase64(file);
-      pages.push({ b64, mimeType: file.type });
-    }
-  }
-
-  statusEl.innerHTML = `<span class="spinner"></span>Reading ${pages.length} page(s) with AI...`;
-
-  const newStreets = [];
-  for (let i = 0; i < pages.length; i++) {
-    statusEl.innerHTML = `<span class="spinner"></span>Page ${i+1} of ${pages.length}...`;
-    try {
-      const extracted = await callAI(pages[i].b64, pages[i].mimeType);
-      for (const s of extracted) {
-        const key = `${s.name}|${s.date}|${s.color}`.toLowerCase();
-        if (!streets.find(e => `${e.name}|${e.date}|${e.color}`.toLowerCase() === key)) {
-          const street = pushStreet(s);
-          newStreets.push(street);
-        }
+  try {
+    // Expand PDFs into page images
+    let pages = []; // [{b64, mimeType}]
+    for (const file of files) {
+      if (file.type === 'application/pdf') {
+        statusEl.innerHTML = `<span class="spinner"></span>Rendering PDF pages...`;
+        try {
+          const images = await pdfToImages(file);
+          for (const b64 of images) pages.push({ b64, mimeType: 'image/jpeg' });
+        } catch(e) { console.error('PDF render error', e); }
+      } else {
+        const b64 = await fileToBase64(file);
+        pages.push({ b64, mimeType: file.type });
       }
-    } catch (err) {
-      console.error('Extraction error', err);
     }
-  }
 
-  document.getElementById('sched-input').value = '';
+    statusEl.innerHTML = `<span class="spinner"></span>Reading ${pages.length} page(s) with AI...`;
 
-  // Apply saved segment data (from plan PDF) to newly extracted streets
-  if (savedSegments.length && newStreets.length) {
-    applySegmentData(savedSegments, newStreets);
-  }
+    const newStreets = [];
+    for (let i = 0; i < pages.length; i++) {
+      statusEl.innerHTML = `<span class="spinner"></span>Page ${i+1} of ${pages.length}...`;
+      try {
+        const extracted = await callAI(pages[i].b64, pages[i].mimeType);
+        for (const s of extracted) {
+          const key = `${s.name}|${s.date}|${s.color}`.toLowerCase();
+          if (!streets.find(e => `${e.name}|${e.date}|${e.color}`.toLowerCase() === key)) {
+            const street = pushStreet(s);
+            newStreets.push(street);
+          }
+        }
+      } catch (err) {
+        console.error('Extraction error', err);
+      }
+    }
 
-  statusEl.innerHTML = newStreets.length
-    ? `✓ Added ${newStreets.length} street${newStreets.length !== 1 ? 's' : ''} — placing on map...`
-    : `⚠ No new streets found`;
+    document.getElementById('sched-input').value = '';
+    if (savedSegments.length && newStreets.length) applySegmentData(savedSegments, newStreets);
 
-  renderAll();
+    statusEl.innerHTML = newStreets.length
+      ? `✓ Added ${newStreets.length} street${newStreets.length !== 1 ? 's' : ''} — placing on map...`
+      : `⚠ No new streets found`;
 
-  // Auto-geocode all newly extracted streets (will clip to exact segment if beginAt/endAt set)
-  if (newStreets.length) {
-    await geocodeAll(newStreets);
+    renderAll();
+    if (newStreets.length) await geocodeAll(newStreets);
+  } catch (err) {
+    statusEl.innerHTML = `⚠ Upload failed — ${err.message}`;
+    console.error('Schedule upload error', err);
   }
 }
 
@@ -1066,7 +1064,7 @@ City is Newark CA — preserve abbreviations exactly as in the known list.`;
     signal: AbortSignal.timeout(60000),
     body: JSON.stringify(body)
   });
-
+  if (!res.ok) throw new Error(`AI proxy error ${res.status}`);
   const data = await res.json();
   const text = (data.choices?.[0]?.message?.content || '').trim();
   const match = text.match(/\[[\s\S]*\]/);
@@ -1084,7 +1082,7 @@ function handlePlanDrop(e) {
 async function handlePlanUpload(files) {
   if (!files || !files.length) return;
   const statusEl = document.getElementById('plan-status');
-
+  try {
   // Only handle PDFs and images
   const file = files[0];
   const isPdf = file.type === 'application/pdf';
@@ -1149,6 +1147,10 @@ async function handlePlanUpload(files) {
   const lowCount = allSegments.filter(s => s.confidence === 'low').length;
   const lowNote = lowCount ? ` · <span style="color:#fbbf24">⚠ ${lowCount} low confidence</span>` : '';
   statusEl.innerHTML = `✓ ${allSegments.length} segments (${uniqueNames} streets)${lowNote} — <a href="#" onclick="openReview();return false;" style="color:#3b82f6">Review</a> · then upload color schedule`;
+  } catch (err) {
+    document.getElementById('plan-status').innerHTML = `⚠ Upload failed — ${err.message}`;
+    console.error('Plan upload error', err);
+  }
 }
 
 async function callPlanAI(pages, pageNum) {
@@ -1189,6 +1191,7 @@ Rules:
     signal: AbortSignal.timeout(90000),
     body: JSON.stringify(body)
   });
+  if (!res.ok) throw new Error(`AI proxy error ${res.status}`);
   const data = await res.json();
   const text = (data.choices?.[0]?.message?.content || '').trim();
   const match = text.match(/\[[\s\S]*\]/);
@@ -1224,13 +1227,15 @@ function geocodeIntersection(street, cross) {
   const crossLower = (cross || '').toLowerCase();
   if (!cross || crossLower === 'dead end' || crossLower.startsWith('matchline') || crossLower.startsWith('edge of') || crossLower.includes('edge of the map')) return Promise.resolve(null);
   return new Promise((resolve) => {
+    const timer = setTimeout(() => resolve(null), 10000);
     geocoder.geocode({
       address: `${street} & ${cross}, Newark, CA`,
       bounds: new google.maps.LatLngBounds(
-        { lat: 37.493, lng: -122.068 },
-        { lat: 37.552, lng: -122.005 }
+        { lat: NEWARK_BBOX.minLat, lng: NEWARK_BBOX.minLng },
+        { lat: NEWARK_BBOX.maxLat, lng: NEWARK_BBOX.maxLng }
       )
     }, (results, status) => {
+      clearTimeout(timer);
       if (status === 'OK' && results.length) {
         const loc = results[0].geometry.location;
         const lat = loc.lat(), lng = loc.lng();
@@ -1434,13 +1439,15 @@ let geocoder = null;
 function geocodeStreet(name) {
   if (!geocoder) geocoder = new google.maps.Geocoder();
   return new Promise((resolve) => {
+    const timer = setTimeout(() => resolve(null), 10000);
     geocoder.geocode({
       address: `${name}, Newark, CA`,
       bounds: new google.maps.LatLngBounds(
-        { lat: 37.505, lng: -122.065 },
-        { lat: 37.560, lng: -122.005 }
+        { lat: NEWARK_BBOX.minLat, lng: NEWARK_BBOX.minLng },
+        { lat: NEWARK_BBOX.maxLat, lng: NEWARK_BBOX.maxLng }
       )
     }, (results, status) => {
+      clearTimeout(timer);
       if (status === 'OK' && results.length) {
         const loc = results[0].geometry.location;
         const lat = loc.lat(), lng = loc.lng();
@@ -1463,6 +1470,7 @@ function fitMapToMarkers() {
     }
   }
   if (count > 0) map.fitBounds(bounds, 60);
+  else showToast('No streets on map yet — place streets first');
 }
 
 // ─── Street Management ───────────────────────────────────
