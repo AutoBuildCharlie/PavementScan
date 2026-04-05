@@ -447,8 +447,9 @@
         print-color-adjust: exact;
         font-size: 10px;
       }
-      /* Print legend panel */
-      #print-legend {
+      #pin-bar, #upgrade-bar, #status-bar { display: none !important; }
+      /* Print legend panel — hidden by default for section prints */
+      body.print-with-legend #print-legend {
         display: flex !important;
         flex-direction: column;
         width: 220px;
@@ -458,6 +459,9 @@
         padding: 14px 12px;
         overflow: hidden;
         font-family: 'Inter', sans-serif;
+      }
+      #print-legend {
+        display: none !important;
       }
       #print-legend h2 {
         font-size: 12px;
@@ -525,7 +529,8 @@
   <button class="btn btn-place-all" onclick="placeAllSegments()">▶ Place All Streets</button>
   <button class="btn btn-clear" onclick="clearStreets()">Clear Streets</button>
   <button class="btn btn-clear" onclick="clearAll()">Clear All</button>
-  <button class="btn btn-export" onclick="window.print()">Export PDF</button>
+  <button class="btn btn-export" onclick="printSection(false)" title="Print just the map — no legend (for section prints)">🖨 Print Section</button>
+  <button class="btn btn-export" onclick="printSection(true)" title="Print map + full schedule legend">🖨 Print + Legend</button>
   <a href="index.html" class="btn btn-back">← PavementScan</a>
 </div>
 
@@ -2094,13 +2099,25 @@ const PRINT_STYLES = [
   { featureType: 'transit',stylers: [{ visibility: 'off' }] },
 ];
 
+let _printLabels = []; // temporary labels added during print
+
 window.addEventListener('beforeprint', () => {
   buildPrintLegend();
   if (map) map.setOptions({ styles: PRINT_STYLES });
+  // Add name labels to all polyline streets (they have no persistent label)
+  for (const st of streets) {
+    if (!st.placed || !st.paths || !st.lat || !st.lng) continue;
+    if (markers[st.id] && markers[st.id].getMap) continue; // already a ScheduleLabel
+    const lbl = new window.ScheduleLabel(new google.maps.LatLng(st.lat, st.lng), st);
+    lbl.setMap(map);
+    _printLabels.push(lbl);
+  }
 });
 
 window.addEventListener('afterprint', () => {
   if (map) map.setOptions({ styles: MAP_STYLES });
+  _printLabels.forEach(l => l.setMap(null));
+  _printLabels = [];
 });
 
 function buildPrintLegend() {
@@ -2188,6 +2205,13 @@ function handlePinClick(latLng) {
     saveState();
     showToast(`${st.name} drawn manually`);
   }
+}
+
+// ─── Section Print ───────────────────────────────────────
+function printSection(withLegend) {
+  if (withLegend) document.body.classList.add('print-with-legend');
+  else document.body.classList.remove('print-with-legend');
+  window.print();
 }
 
 // ─── Street Search ───────────────────────────────────────
