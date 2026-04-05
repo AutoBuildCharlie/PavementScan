@@ -1854,7 +1854,7 @@ function renderList() {
         ⚠ ${notFound.length} streets not found — click to see list
       </div>
       <div class="nf-list" style="display:none;max-height:200px;overflow-y:auto;margin-bottom:6px">${nameList}</div>
-      <button onclick="geocodeAll(streets.filter(s=>s.geocodeFailed))" style="width:100%;padding:5px;background:#92400e;border:none;border-radius:4px;color:#fef3c7;cursor:pointer;font-size:11px">↺ Retry placing these streets</button>
+      <button onclick="retryNotFound()" style="width:100%;padding:5px;background:#92400e;border:none;border-radius:4px;color:#fef3c7;cursor:pointer;font-size:11px">↺ Retry placing these streets</button>
     `;
   } else {
     banner.classList.remove('show');
@@ -2266,6 +2266,26 @@ function handlePinClick(latLng) {
     saveState();
     showToast(`${st.name} drawn manually`);
   }
+}
+
+// ─── Retry Not-Found Streets (uses full per-street Overpass + Google fallback) ───
+async function retryNotFound() {
+  const targets = streets.filter(s => s.geocodeFailed);
+  if (!targets.length) { showToast('Nothing to retry'); return; }
+  const bar   = document.getElementById('geocode-bar');
+  const msgEl = document.getElementById('geocode-msg');
+  bar.classList.add('show');
+  let found = 0;
+  for (let i = 0; i < targets.length; i++) {
+    const st = targets[i];
+    msgEl.textContent = `Trying ${i + 1} of ${targets.length}: ${st.name}`;
+    const drawn = await drawStreetFromOverpass(st);
+    if (drawn) { st.geocodeFailed = false; found++; }
+  }
+  bar.classList.remove('show');
+  renderAll();
+  saveState();
+  showToast(found ? `Found ${found} of ${targets.length} streets` : `Still can't find these — use ✏ Draw to place them manually`);
 }
 
 // ─── Section Print ───────────────────────────────────────
