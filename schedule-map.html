@@ -885,7 +885,7 @@ class ScheduleLabel extends google.maps.OverlayView {
     const div = document.createElement('div');
     div.className        = 'map-label';
     div.style.position   = 'absolute';
-    div.style.color      = hex;
+    div.style.color      = '#000';
     div.dataset.id       = this.street.id;
     div.innerHTML = escHtml(this.street.name) +
       (this.street.split ? '<span class="split-star">★</span>' : '');
