@@ -45,7 +45,7 @@ A pavement assessment tool built for crack seal and slurry seal contractors (Cal
 - **Branch:** `master` — GitHub Pages auto-deploys on push
 - **Deploy command:** `/git-deploy` or `git add . && git commit -m "vXXX: ..." && git push`
 - **Version convention:** bump `?v=XXX` on `<link rel="stylesheet">` and `<script src="...">` in both `index.html` and `mobile.html`
-- **Current version:** v280 (desktop app.js v245, style.css v185), mobile.js v49, schedule-map.html v321
+- **Current version:** v280 (desktop app.js v245, style.css v185), mobile.js v49, schedule-map.html v339
 
 ---
 
@@ -641,18 +641,22 @@ Check `mobile.html` for `?v=XXX` on mobile.js script.
 - **Double-click polyline:** Removes it from map
 - **Print/Export PDF:** `window.print()` → full map + legend
 
-### Schedule Map — GRSI Newark 2025 Status (as of v321 session)
+### Schedule Map — GRSI Newark 2025 Status (as of v339 session)
 - **Plan PDF:** 250708- Newark 2025 Citywide Slurry Seal Plans.pdf (71MB, in Cal's Downloads folder)
 - **PDF structure:** Page 1 = overview street map (thick black segments), Page 3 = site index map (numbered boxes), Pages 4-60 = zoomed-in plan sheets
 - **Plan PDF skips pages 1-3** — AI starts reading at page 4
-- **174 segments extracted, 115 streets, 1 low confidence** — plan PDF extraction works well
-- **Export JSON:** Cal has saved `newark-schedule-2026-04-05 (1).json` in Downloads — contains all 174 savedSegments, import this to skip re-uploading the 71MB PDF
-- **Place All Streets button:** Draws all 115 streets as gray polylines in ~3 seconds using single Newark OSM cache call
-- **85–86 streets placed, 29 not found** — not-found streets are mostly British-named cul-de-sacs (Wembley, Norwich, Rugby, Bath, etc.) in a specific subdivision. Not in OSM or Google for Newark bounds.
-- **Clipping status:** Streets draw FULL (not clipped to exact segment). Local OSM intersection approach was tried but caused diagonal lines — reverted. Full streets is current behavior.
-- **Dates still needed** — color map AI reading is unreliable. Cal needs to get dates from Terri as a typed list. Until then, map shows gray streets with no color/date.
-- **Current state:** Parked. Map functional with 86 gray streets. Needs dates to be useful for crew.
-- **Next session:** Get date list from Terri → build manual date-entry UI → color streets by week
+- **Plan PDF re-uploaded this session** with improved AI prompt — now correctly skips background context streets, only extracts gray-shaded treatment roads
+- **Export JSON:** Cal has saved `newark-schedule-2026-04-05 (2).json` in Downloads — use this to skip re-uploading the 71MB PDF
+- **~104 streets placed, 11 not found** after retry — not-found streets are small residential streets not in OpenStreetMap (Mindewine Dr, Port Tidelwood Pl, Port Tidelwood St, Mote Dr, Arquilla Ct, Tampico Pl, Eva St, Albion Ct, Garner Ave, Aldrin Ct, Munyan Dr)
+- **Clipping status:** Streets draw FULL (not clipped to exact segment). Clipping was tried twice (v316, v324) — both caused diagonal lines — reverted. Full streets is permanent decision.
+- **Map is light mode** — switched from dark theme this session for better print quality
+- **Street labels:** Bold black text only, no pill background, white outline for readability. Labels appear on print via beforeprint temporary overlays.
+- **Print workflow:** 🖨 Print Section (map only, no legend) + 🖨 Print+Legend. User zooms to each area and prints sections to assemble a big map.
+- **Manual pin mode:** ✏ Draw button on each not-found street — click start + end on map to draw manually
+- **Search bar:** Type to filter street list, Enter pans map to first match
+- **Retry not-found:** Uses full per-street Overpass + Google geocode + around:120 fallback (slow but accurate — Cal prefers accuracy over speed always)
+- **Current state:** Functional. Color schedule not yet uploaded — streets are gray (no color/date). 11 streets still not found, can be manually drawn.
+- **Next session:** Upload color schedule → streets get colored by week. Manually draw remaining 11 not-found streets using ✏ Draw. Export fresh JSON after.
 
 ### Schedule Map — Known Decisions (updated)
 | Decision | Reason |
@@ -671,8 +675,35 @@ Check `mobile.html` for `?v=XXX` on mobile.js script.
 | matchline/edge-of-page skipped in geocodeIntersection | These are drafting terms not real intersections — treated same as dead end (returns null, clips from start to road end) |
 | All geocoder bounds now use NEWARK_BBOX constant | Previously had 3 different hardcoded bounds — now all reference one constant for consistency |
 | Geocoder promises have 10s timeout | Google Maps Geocoder callback can hang indefinitely — added setTimeout(resolve(null), 10000) to both geocodeStreet and geocodeIntersection |
+| Clipping permanently removed from drawFromCachedElements | Tried twice (v316, v324) — both caused diagonal lines. Full streets is the permanent decision. Never re-attempt clipping in this function. |
+| Retry button calls retryNotFound() not geocodeAll() | geocodeAll() only uses fast OSM cache. retryNotFound() uses full per-street Overpass + Google geocode + around:120 fallback. Retry must always use the accurate path. |
+| Cal always prefers accuracy over speed | Explicit preference stated. Never remove slow-but-accurate fallbacks for speed gains on this project. |
+| Plan PDF AI prompt requires gray-filled road surface | Old prompt said "gray shaded" — AI kept picking up background context labels. New prompt explicitly says the ROAD SURFACE must be visibly filled gray, not just labeled. |
+| Street labels = bold black text, no pill | Removed pill background. Labels are plain bold black text with white text-shadow outline. Applied via ScheduleLabel.onAdd() and .map-label CSS. |
+| Print labels added via beforeprint | Polyline streets have no persistent label. beforeprint creates temporary ScheduleLabel overlays for all placed polyline streets. afterprint removes them. |
+| Map is light mode permanently | Switched from dark theme for better print quality. MAP_STYLES only hides POI/transit now. |
 
-### Built This Session (v312–v321)
+### Built This Session (v322–v339)
+- **v322:** Upgrade pill labels — added per-street Overpass fallback in upgrade flow
+- **v323:** No fake results — removed geocoder fallback, streets either get real Overpass road line or go to not-found list
+- **v324:** Clipping in drawFromCachedElements using beginAt/endAt — REVERTED (caused diagonal lines again)
+- **v325:** Removed per-street Overpass from upgrade (speed) — REVERTED next version (Cal wants accuracy)
+- **v326:** Restored per-street Overpass fallback in upgrade — accuracy over speed
+- **v327:** Reverted clipping — back to full streets, no diagonal lines
+- **v328:** Hide all Google map labels on print — only custom street labels show
+- **v329:** Street search bar — filters list in real-time, Enter pans map to match
+- **v330:** Manual pin mode — ✏ Draw button on not-found streets, click start+end on map
+- **v331:** Section printing — 🖨 Print Section (map only) + 🖨 Print+Legend, print labels added to polyline streets via beforeprint
+- **v332:** Street labels as bold text — no pill background, white outline, colored by schedule color
+- **v333:** Labels changed to black text only (not schedule color)
+- **v334:** Switched to light map — dark theme removed, better for printing
+- **v335:** Smarter name matching — Saint/St swap, plural handling (Edward/Edwards), substring word overlap
+- **v336:** Fixed plan PDF AI prompt — only extract streets with visibly gray-filled road surface, skip context labels
+- **v337:** ✏ Draw + × Delete buttons added directly to not-found banner
+- **v338:** Google geocode + Overpass around:120 fallback — Google finds location, Overpass confirms real road geometry
+- **v339:** Fixed retry button — now calls retryNotFound() which uses full drawStreetFromOverpass (with Google+around fallback) instead of cache-only geocodeAll
+
+### Built Previous Sessions (v312–v321)
 - **v312:** Fixed clipping — skip matchline/edge-of-page/edge-of-map as geocodable endpoints
 - **v313:** Added **▶ Place All Streets** button — draws all 115 segments from plan PDF as gray lines without needing a color schedule
 - **v314:** Fixed geocodeAll — load Newark cache once upfront, no per-street Overpass calls (3 seconds vs minutes)
