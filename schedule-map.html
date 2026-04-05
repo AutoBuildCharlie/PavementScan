@@ -2268,7 +2268,7 @@ function handlePinClick(latLng) {
   }
 }
 
-// ─── Retry Not-Found Streets (uses full per-street Overpass + Google fallback) ───
+// ─── Retry Not-Found Streets (cache-first + single batch Overpass call) ───
 async function retryNotFound() {
   const targets = streets.filter(s => s.geocodeFailed);
   if (!targets.length) { showToast('Nothing to retry'); return; }
@@ -2276,12 +2276,67 @@ async function retryNotFound() {
   const msgEl = document.getElementById('geocode-msg');
   bar.classList.add('show');
   let found = 0;
-  for (let i = 0; i < targets.length; i++) {
-    const st = targets[i];
-    msgEl.textContent = `Trying ${i + 1} of ${targets.length}: ${st.name}`;
-    const drawn = await drawStreetFromOverpass(st);
-    if (drawn) { st.geocodeFailed = false; found++; }
+
+  // Step 1: load Newark cache (already in memory if Place All was run — free)
+  msgEl.textContent = 'Loading Newark street map…';
+  let cache;
+  try { cache = await fetchNewarkStreetCache(); } catch(e) { cache = null; }
+
+  const stillMissing = [];
+
+  // Step 2: try fuzzy cache match with lower threshold (0.5) for harder names
+  for (const st of targets) {
+    if (cache) {
+      const variants = nameVariants(st.name).map(normalizeName);
+      let hit = null, bestScore = 0;
+      // exact variant match first
+      for (const norm of variants) { if (cache[norm]) { hit = cache[norm]; break; } }
+      // word overlap with lower 0.5 threshold
+      if (!hit) {
+        for (const norm of variants) {
+          for (const [key, val] of Object.entries(cache)) {
+            const score = wordOverlap(norm, key);
+            if (score >= 0.5 && score > bestScore) { hit = val; bestScore = score; }
+          }
+        }
+      }
+      if (hit && await drawFromCachedElements(st, hit, cache)) { st.geocodeFailed = false; found++; continue; }
+    }
+    stillMissing.push(st);
   }
+
+  // Step 3: ONE batch Overpass call for all still-missing streets (not one-per-street)
+  if (stillMissing.length) {
+    msgEl.textContent = `Batch searching ${stillMissing.length} remaining streets…`;
+    const allVariants = [...new Set(
+      stillMissing.flatMap(st => nameVariants(st.name).map(n => n.replace(/['"\\]/g, '')))
+    )];
+    const pattern = allVariants.map(n => `^${n}$`).join('|');
+    try {
+      const res = await fetch('https://overpass-api.de/api/interpreter', {
+        method: 'POST',
+        body: 'data=' + encodeURIComponent(`[out:json][timeout:30];way["name"~"${pattern}",i](${OVERPASS_BBOX});out geom;`),
+        signal: AbortSignal.timeout(35000),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        // Build mini-cache from batch results
+        const batchCache = {};
+        for (const el of (data.elements || [])) {
+          const osmName = el.tags?.name;
+          if (!osmName || !el.geometry || el.geometry.length < 2) continue;
+          const key = normalizeName(osmName);
+          if (!batchCache[key]) batchCache[key] = { osmName, elements: [] };
+          batchCache[key].elements.push(el);
+        }
+        for (const st of stillMissing) {
+          const hit = fuzzyMatchFromCache(st.name, batchCache);
+          if (hit && await drawFromCachedElements(st, hit, batchCache)) { st.geocodeFailed = false; found++; }
+        }
+      }
+    } catch(e) { /* batch call failed — leave as not found */ }
+  }
+
   bar.classList.remove('show');
   renderAll();
   saveState();
