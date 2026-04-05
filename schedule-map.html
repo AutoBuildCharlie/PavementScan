@@ -766,27 +766,13 @@ function fuzzyMatchFromCache(name, cache) {
   return best;
 }
 
-// Draw polylines from cached Overpass elements, clipping to beginAt/endAt if present
+// Draw polylines from cached Overpass elements (full road — no clipping)
 async function drawFromCachedElements(street, cachedEntry, cache) {
-  const hex      = COLOR_HEX[street.color] || '#888';
-  const rawPaths = cachedEntry.elements
+  const hex   = COLOR_HEX[street.color] || '#888';
+  const paths = cachedEntry.elements
     .filter(e => e.geometry && e.geometry.length > 1)
     .map(e => e.geometry.map(p => ({ lat: p.lat, lng: p.lon })));
-  if (!rawPaths.length) return false;
-
-  // Clip to exact segment if we have intersection data from the plan PDF
-  let paths = rawPaths;
-  if (street.beginAt || street.endAt) {
-    const [startPt, endPt] = await Promise.all([
-      street.beginAt ? geocodeIntersection(street.name, street.beginAt) : Promise.resolve(null),
-      street.endAt && street.endAt !== 'dead end' ? geocodeIntersection(street.name, street.endAt) : Promise.resolve(null),
-    ]);
-    if (startPt || endPt) {
-      const allPts  = rawPaths.flat();
-      const clipped = clipPathToSegment(allPts, startPt, endPt);
-      if (clipped.length >= 2) paths = [clipped];
-    }
-  }
+  if (!paths.length) return false;
 
   const polylines = paths.map(path => new google.maps.Polyline({
     path, strokeColor: hex, strokeOpacity: 0.85, strokeWeight: 6,
