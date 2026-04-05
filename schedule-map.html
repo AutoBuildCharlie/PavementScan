@@ -52,6 +52,7 @@
     .btn-back { background: #374151; color: #d1d5db; }
     .btn-clear { background: transparent; color: #6b7280; border: 1px solid #374151; }
     .btn-fit { background: #1d4ed8; color: #fff; }
+    .btn-place-all { background: #7c3aed; color: #fff; }
 
     /* Map color key overlay */
     #map-key {
@@ -521,6 +522,7 @@
   <button class="btn btn-clear" onclick="exportData()">⬇ Export</button>
   <input type="file" id="import-input" accept=".json" style="display:none" onchange="importData(this.files)">
   <button class="btn btn-clear" onclick="document.getElementById('import-input').click()">⬆ Import</button>
+  <button class="btn btn-place-all" onclick="placeAllSegments()">▶ Place All Streets</button>
   <button class="btn btn-clear" onclick="clearStreets()">Clear Streets</button>
   <button class="btn btn-clear" onclick="clearAll()">Clear All</button>
   <button class="btn btn-export" onclick="window.print()">Export PDF</button>
@@ -1939,6 +1941,38 @@ async function importData(files) {
   } catch(e) {
     showToast('Import failed — invalid file');
   }
+}
+
+// ─── Place All Segments (no date/color — gray lines) ────────
+async function placeAllSegments() {
+  if (!savedSegments.length) {
+    alert('No plan PDF segments loaded. Upload the plan PDF first (Step 1).');
+    return;
+  }
+  // Deduplicate by street name
+  const seen = new Set();
+  const toPlace = [];
+  for (const seg of savedSegments) {
+    if (!seg.name || seen.has(seg.name.toLowerCase())) continue;
+    seen.add(seg.name.toLowerCase());
+    // Skip if already placed
+    if (streets.find(s => s.name.toLowerCase() === seg.name.toLowerCase())) continue;
+    toPlace.push(seg);
+  }
+  if (!toPlace.length) {
+    alert('All streets are already on the map.');
+    return;
+  }
+  const newStreets = toPlace.map(seg => {
+    const st = pushStreet({ name: seg.name, date: '', day: '', color: '#888888', split: false });
+    st.beginAt       = seg.from || '';
+    st.endAt         = seg.to   || '';
+    st.segSource     = `Plan page ${seg.sourcePage || '?'}`;
+    st.segConfidence = seg.confidence || 'high';
+    return st;
+  });
+  renderAll();
+  await geocodeAll(newStreets);
 }
 
 // ─── Clear Streets Only (keeps saved segments from plan PDF) ─
