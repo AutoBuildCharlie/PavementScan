@@ -788,6 +788,7 @@ function isInNewark(lat, lng) {
 function removeStreetFromMap(id) {
   if (infoWindow) infoWindow.close();
   if (markers[id]) { markers[id].setMap(null); delete markers[id]; }
+  if (streetLabels[id]) { streetLabels[id].setMap(null); delete streetLabels[id]; }
   const st = streets.find(s => s.id === id);
   if (st) { st.placed = false; st.lat = null; st.lng = null; st.paths = null; }
   renderAll(); saveState();
@@ -916,6 +917,7 @@ let streets          = [];   // [{id, name, date, day, color, split, placed, lat
 let days             = [];   // [{key, label, date, day, color}] sorted
 let savedSegments    = [];   // [{name, from, to, confidence, sourcePage}] — persisted from plan PDF
 let markers          = {};   // id → { setMap } or ScheduleLabel
+let streetLabels     = {};   // id → ScheduleLabel overlay for polyline streets
 let map              = null;
 let activeWeekFilter = null; // null = All, 1/2/3... = specific week
 let newarkStreetCache = null; // all OSM ways in Newark bbox, keyed by normalized name
@@ -1806,6 +1808,34 @@ function closeReview() {
   document.getElementById('review-overlay').classList.remove('show');
 }
 
+// ─── Street Name Labels on Polylines ─────────────────────
+// Keeps a ScheduleLabel at the midpoint of every polyline-placed street.
+function refreshStreetLabels() {
+  if (!window.ScheduleLabel) return;
+  // Remove labels for streets no longer placed
+  for (const id of Object.keys(streetLabels)) {
+    if (!streets.find(s => s.id === id && s.placed && s.paths)) {
+      streetLabels[id].setMap(null);
+      delete streetLabels[id];
+    }
+  }
+  // Add/update labels for placed polyline streets
+  for (const st of streets) {
+    if (!st.placed || !st.paths || !st.paths.length) continue;
+    const allPts = st.paths.flat();
+    if (!allPts.length) continue;
+    const mid = allPts[Math.floor(allPts.length / 2)];
+    if (streetLabels[st.id]) {
+      // Update position and name in case they changed
+      streetLabels[st.id].setMap(null);
+      delete streetLabels[st.id];
+    }
+    const label = new window.ScheduleLabel(new google.maps.LatLng(mid.lat, mid.lng), st);
+    label.setMap(map);
+    streetLabels[st.id] = label;
+  }
+}
+
 // ─── Render ──────────────────────────────────────────────
 function renderAll() {
   renderList();
@@ -1813,6 +1843,7 @@ function renderAll() {
   renderMapKey();
   buildWeekFilters();
   applyFilter();
+  refreshStreetLabels();
 }
 
 // ─── Save / Load State ───────────────────────────────────
@@ -2117,7 +2148,9 @@ async function placeAllSegments() {
 function clearStreets() {
   if (!confirm('Clear all placed streets and colors? Saved plan PDF segments will be kept.')) return;
   for (const id in markers) markers[id].setMap(null);
+  for (const id in streetLabels) streetLabels[id].setMap(null);
   markers          = {};
+  streetLabels     = {};
   streets          = [];
   days             = [];
   activeWeekFilter = null;
@@ -2131,10 +2164,10 @@ function clearStreets() {
 // ─── Clear All ───────────────────────────────────────────
 function clearAll() {
   if (!confirm('Clear all streets and labels?')) return;
-  for (const id in markers) {
-    markers[id].setMap(null);
-  }
+  for (const id in markers) markers[id].setMap(null);
+  for (const id in streetLabels) streetLabels[id].setMap(null);
   markers          = {};
+  streetLabels     = {};
   streets          = [];
   days             = [];
   savedSegments    = [];
