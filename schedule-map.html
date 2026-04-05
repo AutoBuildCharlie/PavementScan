@@ -766,12 +766,19 @@ function fuzzyMatchFromCache(name, cache) {
 }
 
 // Draw polylines from cached Overpass elements
-function drawFromCachedElements(street, cachedEntry) {
+function drawFromCachedElements(street, cachedEntry, startPt, endPt) {
   const hex   = COLOR_HEX[street.color] || '#888';
-  const paths = cachedEntry.elements
+  let paths = cachedEntry.elements
     .filter(e => e.geometry && e.geometry.length > 1)
     .map(e => e.geometry.map(p => ({ lat: p.lat, lng: p.lon })));
   if (!paths.length) return false;
+
+  // Clip to exact segment if intersection points provided
+  if (startPt || endPt) {
+    const allPts = paths.flat();
+    const clipped = clipPathToSegment(allPts, startPt, endPt);
+    if (clipped.length >= 2) paths = [clipped];
+  }
 
   const polylines = paths.map(path => new google.maps.Polyline({
     path, strokeColor: hex, strokeOpacity: 0.85, strokeWeight: 6,
@@ -1280,9 +1287,14 @@ async function geocodeAll(batch) {
     try {
       // 1. Try fuzzy match against full Newark street cache (local — no API call)
       const cacheHit = cache ? fuzzyMatchFromCache(st.name, cache) : null;
-      if (cacheHit && drawFromCachedElements(st, cacheHit)) {
-        placed++;
-      } else {
+      if (cacheHit) {
+        const [startPt, endPt] = await Promise.all([
+          st.beginAt ? geocodeIntersection(st.name, st.beginAt) : Promise.resolve(null),
+          st.endAt   ? geocodeIntersection(st.name, st.endAt)   : Promise.resolve(null),
+        ]);
+        if (drawFromCachedElements(st, cacheHit, startPt, endPt)) { placed++; continue; }
+      }
+      {
         // 2. Final fallback: Google geocoder with bounds check
         const result = await geocodeStreet(st.name);
         if (result) {
@@ -1852,9 +1864,14 @@ async function upgradePillsToPolylines() {
       st.placed = false; st.lat = null; st.lng = null;
 
       const hit = cache ? fuzzyMatchFromCache(st.name, cache) : null;
-      if (hit && drawFromCachedElements(st, hit)) {
-        upgraded++;
-      } else if (origLat && origLng) {
+      if (hit) {
+        const [startPt, endPt] = await Promise.all([
+          st.beginAt ? geocodeIntersection(st.name, st.beginAt) : Promise.resolve(null),
+          st.endAt   ? geocodeIntersection(st.name, st.endAt)   : Promise.resolve(null),
+        ]);
+        if (drawFromCachedElements(st, hit, startPt, endPt)) { upgraded++; continue; }
+      }
+      if (origLat && origLng) {
         placeMarker(st, origLat, origLng);
       } else {
         const result = await geocodeStreet(st.name);
