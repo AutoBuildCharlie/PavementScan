@@ -2074,8 +2074,19 @@ function setupDropZone(zoneId, onDrop) {
 setupDropZone('sched-zone', files => handleScheduleUpload(files));
 
 // ─── Light map for print, dark map for screen ────────────
+const PRINT_STYLES = [
+  { elementType: 'labels', stylers: [{ visibility: 'off' }] },
+  { featureType: 'poi',    stylers: [{ visibility: 'off' }] },
+  { featureType: 'transit',stylers: [{ visibility: 'off' }] },
+];
+
 window.addEventListener('beforeprint', () => {
   buildPrintLegend();
+  if (map) map.setOptions({ styles: PRINT_STYLES });
+});
+
+window.addEventListener('afterprint', () => {
+  if (map) map.setOptions({ styles: MAP_STYLES });
 });
 
 function buildPrintLegend() {
