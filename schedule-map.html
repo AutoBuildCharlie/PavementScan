@@ -1261,15 +1261,15 @@ function clipPathToSegment(points, startPt, endPt) {
   return points.slice(startIdx, endIdx + 1);
 }
 
-// ─── Geocode All (batch, rate-limited) ───────────────────
+// ─── Geocode All (cache-first, no per-street Overpass calls) ─
 async function geocodeAll(batch) {
   const bar   = document.getElementById('geocode-bar');
   const msgEl = document.getElementById('geocode-msg');
   bar.classList.add('show');
 
-  // Pre-fetch full Newark street list in background while processing starts
+  // Load full Newark street cache FIRST — one call for everything
   msgEl.textContent = 'Loading Newark street map…';
-  const cachePromise = fetchNewarkStreetCache().catch(() => null);
+  const cache = await fetchNewarkStreetCache().catch(() => null);
 
   let placed = 0;
   let failed = 0;
@@ -1278,34 +1278,27 @@ async function geocodeAll(batch) {
     const st = batch[i];
     msgEl.textContent = `Drawing ${i + 1} of ${batch.length}: ${st.name}`;
     try {
-      // 1. Try Overpass with exact + expanded name
-      const drawn = await drawStreetFromOverpass(st);
-      if (drawn) {
+      // 1. Try fuzzy match against full Newark street cache (local — no API call)
+      const cacheHit = cache ? fuzzyMatchFromCache(st.name, cache) : null;
+      if (cacheHit && drawFromCachedElements(st, cacheHit)) {
         placed++;
       } else {
-        // 2. Try fuzzy match against full Newark street cache
-        const cache = await cachePromise;
-        const cacheHit = cache ? fuzzyMatchFromCache(st.name, cache) : null;
-        if (cacheHit && drawFromCachedElements(st, cacheHit)) {
+        // 2. Final fallback: Google geocoder with bounds check
+        const result = await geocodeStreet(st.name);
+        if (result) {
+          st.geocodeFailed = false;
+          placeMarker(st, result.lat, result.lng);
           placed++;
         } else {
-          // 3. Final fallback: Google geocoder with bounds check
-          const result = await geocodeStreet(st.name);
-          if (result) {
-            st.geocodeFailed = false;
-            placeMarker(st, result.lat, result.lng);
-            placed++;
-          } else {
-            st.geocodeFailed = true;
-            failed++;
-          }
+          st.geocodeFailed = true;
+          failed++;
         }
       }
     } catch (e) {
       st.geocodeFailed = true;
       failed++;
     }
-    if (i < batch.length - 1) await delay(1500);
+    // Small delay only for geocoder fallback streets — cache hits need no delay
   }
 
   bar.classList.remove('show');
